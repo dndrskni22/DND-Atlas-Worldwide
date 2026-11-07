@@ -1,0 +1,8 @@
+{
+  "name": "CargoTrace – Global Multimodal Shipment Visibility",
+  "description": "Multimodal Sea, Air, and Road shipment visibility, tracking timeline, deterministic ETA and delay detection, exception management, and OpenStreetMap route analytics.",
+  "permissions": [],
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
