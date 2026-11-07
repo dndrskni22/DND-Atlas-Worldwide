@@ -1,0 +1,291 @@
+{
+  "info": {
+    "_postman_id": "cargotrace-uas-2026-collection",
+    "name": "CargoTrace – Global Shipment Visibility & Tracking REST API (UAS)",
+    "description": "Official Postman Collection for CargoTrace (Web Programming 2 Final Project Brief Slide 12 & 18). Includes Authentication, Shipments CRUD, Append-Only Tracking Events, Multimodal Carriers & Locations, and Exception Management.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000/api",
+      "type": "string"
+    },
+    {
+      "key": "auth_token",
+      "value": "sanctum-demo-token-operator-budiono",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Authentication (Sanctum)",
+      "item": [
+        {
+          "name": "POST /api/register",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{base_url}}/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"PT Nusantara Retail\",\n  \"email\": \"customer.nusantara@example.com\",\n  \"password\": \"Password123!\",\n  \"password_confirmation\": \"Password123!\",\n  \"role\": \"CUSTOMER\"\n}"
+            }
+          }
+        },
+        {
+          "name": "POST /api/login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{base_url}}/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"budisiregar@gmail.com\",\n  \"password\": \"password\"\n}"
+            }
+          }
+        },
+        {
+          "name": "GET /api/user",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": "{{base_url}}/user"
+          }
+        },
+        {
+          "name": "POST /api/logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": "{{base_url}}/logout"
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Shipments (Multimodal CRUD & Filtering)",
+      "item": [
+        {
+          "name": "GET /api/shipments (Filter by Mode, Status, Delay)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/shipments?mode=SEA&status=IN_TRANSIT&delayed=1",
+              "host": ["{{base_url}}"],
+              "path": ["shipments"],
+              "query": [
+                { "key": "mode", "value": "SEA" },
+                { "key": "status", "value": "IN_TRANSIT" },
+                { "key": "delayed", "value": "1" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST /api/shipments (Create Multimodal Shipment)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": "{{base_url}}/shipments",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mode\": \"SEA\",\n  \"customer_id\": \"usr-cust-1\",\n  \"carrier_id\": \"car-sea-1\",\n  \"origin_location_id\": \"loc-idjkt\",\n  \"destination_location_id\": \"loc-nlrtm\",\n  \"vehicle_identifier\": \"MV Ocean Sunda (IMO 9842100)\",\n  \"scheduled_departure_at\": \"2026-09-10T08:00:00Z\",\n  \"expected_arrival_at\": \"2026-09-28T16:00:00Z\",\n  \"items\": [\n    {\n      \"sku\": \"ELEC-7741\",\n      \"description\": \"Industrial Solar Inverters\",\n      \"quantity\": 40,\n      \"weight_kg\": 12400,\n      \"volume_cbm\": 64.5,\n      \"hs_code\": \"8504.40.90\"\n    }\n  ]\n}"
+            }
+          }
+        },
+        {
+          "name": "GET /api/shipments/{id} (Full Detail + ETA Evaluation)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": "{{base_url}}/shipments/CT-2026-0001"
+          }
+        },
+        {
+          "name": "PATCH /api/shipments/{id} (Update Status / ETA)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": "{{base_url}}/shipments/CT-2026-0001",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"IN_TRANSIT\",\n  \"current_eta_at\": \"2026-09-19T20:00:00Z\"\n}"
+            }
+          }
+        },
+        {
+          "name": "DELETE /api/shipments/{id} (Admin Only)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": "{{base_url}}/shipments/CT-2026-0045"
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Tracking Timeline (Append-Only)",
+      "item": [
+        {
+          "name": "GET /api/shipments/{id}/tracking",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": "{{base_url}}/shipments/CT-2026-0001/tracking"
+          }
+        },
+        {
+          "name": "POST /api/shipments/{id}/tracking (Append Event)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": "{{base_url}}/shipments/CT-2026-0001/tracking",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event_type\": \"TRANSSHIPMENT_ARRIVED\",\n  \"status_after\": \"IN_TRANSIT\",\n  \"location_id\": \"loc-sgsin\",\n  \"description\": \"Container discharged at PSA Singapore Terminal for mother-vessel connection.\",\n  \"occurred_at\": \"2026-09-16T14:30:00Z\",\n  \"updated_eta_at\": \"2026-09-25T18:00:00Z\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Master Data (Carriers & Locations)",
+      "item": [
+        {
+          "name": "GET /api/carriers",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": "{{base_url}}/carriers?mode=SEA"
+          }
+        },
+        {
+          "name": "POST /api/carriers (Admin Only)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": "{{base_url}}/carriers",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Pacific Nusantara Lines\",\n  \"code\": \"PNL-SEA\",\n  \"mode\": \"SEA\",\n  \"vehicle_group\": \"Panamax Container Vessel\",\n  \"contact_email\": \"ops@pnl-maritime.example\",\n  \"country\": \"Indonesia\"\n}"
+            }
+          }
+        },
+        {
+          "name": "GET /api/locations",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": "{{base_url}}/locations?type=SEAPORT"
+          }
+        },
+        {
+          "name": "POST /api/locations (Admin Only)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": "{{base_url}}/locations",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Port of Belawan\",\n  \"city\": \"Medan\",\n  \"country\": \"Indonesia\",\n  \"code\": \"IDBLW\",\n  \"type\": \"SEAPORT\",\n  \"latitude\": 3.7844,\n  \"longitude\": 98.6838\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Exceptions Management",
+      "item": [
+        {
+          "name": "GET /api/shipments/{id}/exceptions",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": "{{base_url}}/shipments/CT-2026-0001/exceptions"
+          }
+        },
+        {
+          "name": "POST /api/shipments/{id}/exceptions (Raise Exception)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": "{{base_url}}/shipments/CT-2026-0001/exceptions",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"CUSTOMS_HOLD\",\n  \"delay_hours\": 16,\n  \"reason_note\": \"Additional phytosanitary & HS code verification requested by customs authority.\"\n}"
+            }
+          }
+        },
+        {
+          "name": "PATCH /api/exceptions/{id} (Acknowledge / Resolve)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{auth_token}}" }
+            ],
+            "url": "{{base_url}}/exceptions/exc-1",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"RESOLVED\",\n  \"resolution_note\": \"Revised commercial invoice and certificate of origin verified; customs release granted.\"\n}"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
