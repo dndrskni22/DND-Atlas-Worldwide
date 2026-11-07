@@ -1,0 +1,286 @@
+import React from 'react';
+import {
+  ExceptionStatus,
+  LocationType,
+  SeverityLevel,
+  ShipmentStatus,
+  TransportMode,
+} from '../types/cargotrace';
+import {
+  Anchor,
+  Plane,
+  Truck,
+  Building2,
+} from 'lucide-react';
+
+export const ModeIconChip: React.FC<{
+  mode: TransportMode;
+  size?: 'sm' | 'md' | 'lg';
+  showLabel?: boolean;
+}> = ({ mode, size = 'md', showLabel = false }) => {
+  const config = {
+    [TransportMode.SEA]: {
+      icon: Anchor,
+      bg: 'bg-[#DBF2FC]',
+      text: 'text-[#072D59]',
+      border: 'border-[#B8E2F8]',
+      label: 'Sea Freight',
+    },
+    [TransportMode.AIR]: {
+      icon: Plane,
+      bg: 'bg-[#E6EEF9]',
+      text: 'text-[#072D59]',
+      border: 'border-[#C6D9F1]',
+      label: 'Air Freight',
+    },
+    [TransportMode.ROAD]: {
+      icon: Truck,
+      bg: 'bg-[#E4F3F5]',
+      text: 'text-[#072D59]',
+      border: 'border-[#BCE3E8]',
+      label: 'Road Freight',
+    },
+  }[mode];
+
+  const IconComponent = config.icon;
+  const boxSize =
+    size === 'sm' ? 'w-7 h-7 rounded-lg' : size === 'lg' ? 'w-10 h-10 rounded-xl' : 'w-9 h-9 rounded-lg';
+  const iconSize = size === 'sm' ? 'w-3.5 h-3.5' : size === 'lg' ? 'w-5 h-5' : 'w-4 h-4';
+
+  return (
+    <div className="inline-flex items-center gap-2 shrink-0">
+      <div
+        className={`${boxSize} ${config.bg} ${config.text} border ${config.border} flex items-center justify-center shrink-0`}
+        title={config.label}
+      >
+        <IconComponent className={iconSize} strokeWidth={1.9} />
+      </div>
+      {showLabel && (
+        <span className="text-[13px] font-medium text-[#1E293B] whitespace-nowrap">
+          {config.label}
+        </span>
+      )}
+    </div>
+  );
+};
+
+export const LocationTypeBadge: React.FC<{ type: LocationType }> = ({ type }) => {
+  const map = {
+    [LocationType.SEAPORT]: {
+      icon: Anchor,
+      label: 'Seaport',
+      cls: 'text-[#072D59]',
+    },
+    [LocationType.AIRPORT]: {
+      icon: Plane,
+      label: 'Airport',
+      cls: 'text-[#3E6FB4]',
+    },
+    [LocationType.DEPOT]: {
+      icon: Building2,
+      label: 'Road Depot',
+      cls: 'text-[#2F8F9A]',
+    },
+  }[type];
+  const Icon = map.icon;
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 text-[12px] font-semibold whitespace-nowrap ${map.cls}`}
+    >
+      <Icon className="w-3.5 h-3.5" />
+      <span>{map.label}</span>
+    </span>
+  );
+};
+
+export const ShipmentStatusBadge: React.FC<{
+  status: ShipmentStatus;
+  isDelayed?: boolean;
+}> = ({ status, isDelayed = false }) => {
+  const statusLabels: Record<ShipmentStatus, string> = {
+    [ShipmentStatus.CREATED]: 'Created',
+    [ShipmentStatus.BOOKED]: 'Booked',
+    [ShipmentStatus.PICKED_UP]: 'Picked Up',
+    [ShipmentStatus.IN_TRANSIT]: 'In Transit',
+    [ShipmentStatus.DELIVERED]: 'Delivered',
+  };
+
+  if (isDelayed && status !== ShipmentStatus.DELIVERED) {
+    return (
+      <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[11.5px] font-semibold bg-[#FFF0F3] text-[#9F1D35] border border-[#FD6E88]/70 whitespace-nowrap">
+        Delayed · {statusLabels[status]}
+      </span>
+    );
+  }
+
+  const styles: Record<ShipmentStatus, { label: string; cls: string }> = {
+    [ShipmentStatus.CREATED]: {
+      label: 'Created',
+      cls: 'bg-[#F1F5F9] text-[#475569] border-[#CBD5E1]',
+    },
+    [ShipmentStatus.BOOKED]: {
+      label: 'Booked',
+      cls: 'bg-[#DBF2FC] text-[#072D59] border-[#B8E2F8]',
+    },
+    [ShipmentStatus.PICKED_UP]: {
+      label: 'Picked Up',
+      cls: 'bg-[#E6EEF9] text-[#072D59] border-[#C6D9F1]',
+    },
+    [ShipmentStatus.IN_TRANSIT]: {
+      label: 'In Transit',
+      cls: 'bg-[#072D59] text-white border-[#072D59]',
+    },
+    [ShipmentStatus.DELIVERED]: {
+      label: 'Delivered',
+      cls: 'bg-[#E5F3EC] text-[#2B6E51] border-[#B8E0CC]',
+    },
+  };
+
+  const s = styles[status];
+  return (
+    <span
+      className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-[11.5px] font-semibold border whitespace-nowrap ${s.cls}`}
+    >
+      {s.label}
+    </span>
+  );
+};
+
+/**
+ * Clean unboxed text indicator for schedule variance / delay severity
+ * (Follows Zero-Pill Metadata Discipline to avoid stacking multiple pill badges)
+ */
+export const SeverityBadge: React.FC<{ severity: SeverityLevel }> = ({ severity }) => {
+  if (severity === SeverityLevel.NONE) {
+    return (
+      <span className="text-[12px] font-medium text-[#2B6E51] whitespace-nowrap">
+        On schedule
+      </span>
+    );
+  }
+
+  const styles: Record<Exclude<SeverityLevel, SeverityLevel.NONE>, { label: string; cls: string }> = {
+    [SeverityLevel.LOW]: {
+      label: 'Minor delay (0–6h)',
+      cls: 'text-[#475569]',
+    },
+    [SeverityLevel.MEDIUM]: {
+      label: 'Moderate delay (6–24h)',
+      cls: 'text-[#975A16]',
+    },
+    [SeverityLevel.HIGH]: {
+      label: 'Severe delay (>24h)',
+      cls: 'text-[#9F1D35]',
+    },
+  };
+
+  const s = styles[severity];
+  return (
+    <span className={`text-[12px] font-semibold whitespace-nowrap ${s.cls}`}>
+      {s.label}
+    </span>
+  );
+};
+
+export const ExceptionStatusBadge: React.FC<{ status: ExceptionStatus }> = ({ status }) => {
+  const styles: Record<ExceptionStatus, { label: string; cls: string }> = {
+    [ExceptionStatus.OPEN]: {
+      label: 'Open Hold',
+      cls: 'bg-[#FFF0F3] text-[#9F1D35] border-[#FD6E88]/80',
+    },
+    [ExceptionStatus.INVESTIGATING]: {
+      label: 'Under Review',
+      cls: 'bg-[#DBF2FC] text-[#072D59] border-[#9BD4F0]',
+    },
+    [ExceptionStatus.RESOLVED]: {
+      label: 'Resolved',
+      cls: 'bg-[#E5F3EC] text-[#2B6E51] border-[#B8E0CC]',
+    },
+  };
+  const s = styles[status];
+  return (
+    <span
+      className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-[11.5px] font-semibold border whitespace-nowrap ${s.cls}`}
+    >
+      {s.label}
+    </span>
+  );
+};
+
+/**
+ * KPI Metric Card matching the reference screenshot (`image.png`)
+ * Features:
+ * 1. Top progress bar + percentage label
+ * 2. Icon + title (no dead '...' button)
+ * 3. Large tabular metric value + muted unit label
+ */
+export const KpiStatCard: React.FC<{
+  percentage: number;
+  barColorHex: string;
+  icon: React.ReactNode;
+  label: string;
+  primaryValue: string;
+  unitLabel: string;
+  subtitleNote?: string;
+  onClick?: () => void;
+}> = ({
+  percentage,
+  barColorHex,
+  icon,
+  label,
+  primaryValue,
+  unitLabel,
+  subtitleNote,
+  onClick,
+}) => {
+  const clampedPct = Math.max(4, Math.min(100, Math.round(percentage)));
+
+  return (
+    <div
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={
+        onClick
+          ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') onClick();
+            }
+          : undefined
+      }
+      className={`bg-white border border-[#DCE4F0] rounded-xl p-4 transition-colors ${
+        onClick ? 'cursor-pointer hover:border-[#072D59]/50' : ''
+      }`}
+    >
+      {/* Top row: Thin colored progress bar + Percentage */}
+      <div className="flex items-center gap-2.5 mb-2.5">
+        <div className="flex-1 h-1.5 bg-[#EEF2F8] rounded-full overflow-hidden">
+          <div
+            className="h-full rounded-full transition-all duration-300"
+            style={{ width: `${clampedPct}%`, backgroundColor: barColorHex }}
+          />
+        </div>
+        <span className="text-[12px] font-semibold text-[#1E293B] tabular-nums shrink-0">
+          {Math.round(percentage)}%
+        </span>
+      </div>
+
+      {/* Middle row: Icon + Label */}
+      <div className="flex items-center gap-2 mb-1.5">
+        <span className="text-[#072D59]">{icon}</span>
+        <span className="text-[13px] font-medium text-[#1E293B]">{label}</span>
+      </div>
+
+      {/* Bottom row: Large value + muted unit */}
+      <div className="flex items-baseline gap-1.5">
+        <span className="text-[22px] font-bold text-[#072D59] tabular-nums tracking-tight">
+          {primaryValue}
+        </span>
+        <span className="text-[14.5px] font-normal text-[#475569]">{unitLabel}</span>
+      </div>
+
+      {subtitleNote && (
+        <div className="mt-1 text-[11.5px] text-[#475569] truncate">{subtitleNote}</div>
+      )}
+    </div>
+  );
+};
