@@ -4,13 +4,13 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "tsx server.ts",
+    "dev": "vite",
     "build": "tsc && vite build",
     "lint": "tsc --noEmit",
-    "start": "tsx server.ts",
-    "preview": "vite preview --port 3000 --host 0.0.0.0"
+    "preview": "vite preview --port 3000 --host 0.0.0.0",
+    "seed:dump": "tsx scripts/dump-seed.ts"
   },
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "@tailwindcss/vite": "^4.3.4",
     "@types/canvas-confetti": "^1.9.0",
@@ -25,7 +25,6 @@
     "leaflet": "^1.9.4",
     "lucide-react": "^1.69.0",
     "maplibre-gl": "^6.16.0",
-    "mysql2": "^3.24.6",
     "react": "^19.3.1",
     "react-chartjs-2": "^5.3.1",
     "react-dom": "^19.3.1",
