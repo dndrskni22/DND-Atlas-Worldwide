@@ -1,6 +1,0 @@
-{
-  "summary": "Design Specification for CargoTrace multimodal logistics platform. Defines the custom color tokens (#DBF2FC Ice Blue, #072D59 Deep Navy, #FD6E88 Coral Rose), typography, component inventory derived from image.png, multimodal transport rules (Sea, Air, Road), Leaflet OpenStreetMap integration, and Group A configuration.",
-  "updatedAt": "2026-11-05T11:38:09.516517070Z",
-  "requestFeedback": true,
-  "userFacing": true
-}
