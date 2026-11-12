@@ -22,20 +22,29 @@ class DashboardController
      */
     public function index(Request $request): View
     {
+        $groupConfig = [
+            'group_name' => config('cargotrace.group_name', 'Group A'),
+            'primary_route_corridor' => config('cargotrace.primary_route_corridor', 'Southeast Asia → Europe'),
+            'delay_threshold_hours' => (int) config('cargotrace.delay_threshold_hours', 12),
+            'main_exception_focus' => config('cargotrace.main_exception_focus', 'CUSTOMS_HOLD'),
+            'primary_kpi' => config('cargotrace.primary_kpi', 'On-Time Delivery Rate'),
+        ];
+
+        $counts = [
+            'shipments' => Shipment::count(),
+            'carriers' => Carrier::count(),
+            'locations' => Location::count(),
+            'open_exceptions' => ShipmentException::where('status', '!=', 'RESOLVED')->count(),
+        ];
+
         return view('cargotrace.app', [
             'appName' => config('app.name', 'DND Atlas Worldwide'),
-            'groupConfig' => [
-                'group_name' => config('cargotrace.group_name', 'Group A'),
-                'primary_route_corridor' => config('cargotrace.primary_route_corridor', 'Southeast Asia → Europe'),
-                'delay_threshold_hours' => (int) config('cargotrace.delay_threshold_hours', 12),
-                'main_exception_focus' => config('cargotrace.main_exception_focus', 'CUSTOMS_HOLD'),
-                'primary_kpi' => config('cargotrace.primary_kpi', 'On-Time Delivery Rate'),
-            ],
-            'counts' => [
-                'shipments' => Shipment::count(),
-                'carriers' => Carrier::count(),
-                'locations' => Location::count(),
-                'open_exceptions' => ShipmentException::where('status', '!=', 'RESOLVED')->count(),
+            'groupConfig' => $groupConfig,
+            'counts' => $counts,
+            'boot' => [
+                'framework' => 'Laravel 12.x (PHP 8.3 + MySQL 8.0)',
+                'groupConfig' => $groupConfig,
+                'counts' => $counts,
             ],
         ]);
     }

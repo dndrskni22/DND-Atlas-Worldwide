@@ -14,11 +14,7 @@
   </head>
   <body class="bg-[#F4F7FB] text-[#243350] antialiased selection:bg-[#DBF2FC] selection:text-[#072D59] min-h-screen">
     <script>
-      window.__CARGOTRACE_LARAVEL_BOOT__ = @json([
-        'framework' => 'Laravel 12.x (PHP 8.3 + MySQL 8.0)',
-        'groupConfig' => $groupConfig ?? null,
-        'counts' => $counts ?? null,
-      ]);
+      window.__CARGOTRACE_LARAVEL_BOOT__ = @json($boot);
     </script>
     <div id="root"></div>
   </body>
