@@ -56,9 +56,9 @@ Authentication is handled via the dedicated **Sign In Page** (`/login`). To insp
 | **`ADMIN`** | `admin@cargotrace.id` | `password123` | **Rendra Wijaya** — CargoTrace HQ Admin | Full platform access: all shipments, carriers/locations master data, threshold settings, and system audit trail |
 | **`OPERATOR`** | `budisiregar@cargotrace.id` | `password123` | **Budiono Siregar** — CargoTrace Operations Desk | Operational access: create shipments, append tracking milestones, and resolve customs/weather exceptions |
 | **`OPERATOR`** | `siti.ops@cargotrace.id` | `password123` | **Siti Rahmawati** — CargoTrace Operations Desk | Operational access: Sea & Air corridor dispatch and exception management |
-| **`CUSTOMER`** | `ayu@nusantararetail.co.id` | `password123` | **Ayu Lestari** — PT Nusantara Retail | Read-only customer portal scoped strictly to **PT Nusantara Retail** shipments (`user_id = 3`) |
-| **`CUSTOMER`** | `h.vanderberg@eurotech-bv.nl` | `password123` | **Hendrik Van Der Berg** — EuroTech Industrial B.V. | Read-only customer portal scoped strictly to **EuroTech Industrial B.V.** shipments (`user_id = 4`) |
-| **`CUSTOMER`** | `bambang@indoagro-export.co.id` | `password123` | **Bambang Hartono** — PT IndoAgro Commodities | Read-only customer portal scoped strictly to **PT IndoAgro Commodities** shipments (`user_id = 5`) |
+| **`CUSTOMER`** | `ayu@nusantararetail.co.id` | `password123` | **Ayu Lestari** — PT Nusantara Retail | Read-only customer portal scoped strictly to **PT Nusantara Retail** shipments (`user_id = 4`) |
+| **`CUSTOMER`** | `h.vanderberg@eurotech-bv.nl` | `password123` | **Hendrik Van Der Berg** — EuroTech Industrial B.V. | Read-only customer portal scoped strictly to **EuroTech Industrial B.V.** shipments (`user_id = 5`) |
+| **`CUSTOMER`** | `bambang@indoagro-export.co.id` | `password123` | **Bambang Hartono** — PT IndoAgro Commodities | Read-only customer portal scoped strictly to **PT IndoAgro Commodities** shipments (`user_id = 6`) |
 
 ---
 
