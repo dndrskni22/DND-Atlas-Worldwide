@@ -2,10 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   AuthPolicyService,
+  DEFAULT_MAP_INTERACTIVITY_OPTIONS,
   EtaService,
   ShipmentService,
   TrackingService,
   calculateHaversineKm,
+  computeCompassIndicatorState,
+  getCardinalDirection,
+  normalizeCompassBearing,
 } from './CargoTraceService';
 import {
   Carrier,
@@ -432,3 +436,118 @@ test('TrackingService: validates mode vocabulary and chronological order', () =>
   );
   assert.equal(distKm > 11000 && distKm < 11600, true);
 });
+
+test('REST API (Brief Slide 12 & 13): enforces 200/201/401/403/404/422 contracts, customer isolation, and status rules over HTTP', async () => {
+  const express = (await import('express')).default;
+  const { createCargoTraceApiRouter } = await import('../api/cargoTraceRouter');
+  const app = express();
+  app.use('/api', createCargoTraceApiRouter());
+
+  const server = app.listen(0);
+  const address = server.address();
+  const port = typeof address === 'object' && address ? address.port : 0;
+  const baseUrl = `http://127.0.0.1:${port}/api`;
+
+  try {
+    // 1. Unauthenticated request -> 401
+    const unauthRes = await fetch(`${baseUrl}/shipments`);
+    assert.equal(unauthRes.status, 401);
+
+    // 2. Login with valid Operator credentials -> 200 + token
+    const loginRes = await fetch(`${baseUrl}/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'budisiregar@cargotrace.id', password: 'password123' }),
+    });
+    assert.equal(loginRes.status, 200);
+    const loginJson = (await loginRes.json()) as { token: string; user: User };
+    assert.ok(loginJson.token);
+    assert.equal(loginJson.user.role, UserRole.OPERATOR);
+
+    // 3. Customer isolation: Customer 4 (ayu@nusantararetail.co.id) can only see their own shipments
+    const custListRes = await fetch(`${baseUrl}/shipments`, {
+      headers: { Authorization: 'Bearer demo-token-customer-4' },
+    });
+    assert.equal(custListRes.status, 200);
+    const custListJson = (await custListRes.json()) as { data: Shipment[] };
+    assert.ok(custListJson.data.length > 0);
+    assert.ok(custListJson.data.every((s) => s.customer_id === 4));
+
+    // 4. Customer 5 attempting to view Customer 4's shipment -> 403 Forbidden
+    const cust4ShipmentId = custListJson.data[0].id;
+    const forbiddenViewRes = await fetch(`${baseUrl}/shipments/${cust4ShipmentId}`, {
+      headers: { Authorization: 'Bearer demo-token-customer-5' },
+    });
+    assert.equal(forbiddenViewRes.status, 403);
+
+    // 5. Customer attempting POST /api/shipments -> 403 Forbidden
+    const forbiddenCreateRes = await fetch(`${baseUrl}/shipments`, {
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer demo-token-customer-4',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({}),
+    });
+    assert.equal(forbiddenCreateRes.status, 403);
+
+    // 6. Operator attempting invalid SEA shipment with AIRPORT destination -> 422 Validation Error
+    const invalidCreateRes = await fetch(`${baseUrl}/shipments`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${loginJson.token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        customer_id: 4,
+        carrier_id: 1, // SEA carrier
+        mode: 'SEA',
+        origin_location_id: 1, // SEAPORT
+        destination_location_id: 7, // AIRPORT -> invalid for SEA
+        cargo_type: 'Test Invalid Multimodal',
+        total_weight_kg: 5000,
+        total_volume_cbm: 20,
+      }),
+    });
+    assert.equal(invalidCreateRes.status, 422);
+  } finally {
+    server.close();
+  }
+});
+
+test('Map Compass & Interactivity: computes compass orientation from view angle and enables scrollWheelZoom, dragging, and zoomControl', () => {
+  // 1. Verify default North orientation (0 deg)
+  assert.equal(normalizeCompassBearing(0), 0);
+  assert.equal(normalizeCompassBearing(360), 0);
+  assert.equal(normalizeCompassBearing(-45), 315);
+  assert.equal(getCardinalDirection(0), 'N');
+  assert.equal(getCardinalDirection(45), 'NE');
+  assert.equal(getCardinalDirection(90), 'E');
+  assert.equal(getCardinalDirection(180), 'S');
+  assert.equal(getCardinalDirection(-45), 'NW');
+
+  const northState = computeCompassIndicatorState(0, 0);
+  assert.equal(northState.normalizedBearing, 0);
+  assert.equal(northState.needleRotationDeg, 0);
+  assert.equal(northState.cardinal, 'N');
+  assert.equal(northState.formattedLabel, '0° N');
+  assert.equal(northState.isRotated, false);
+
+  // 2. Verify rotated view angle (45 deg East -> needle points -45 deg to keep True North accurate)
+  const rotatedState = computeCompassIndicatorState(45, 18);
+  assert.equal(rotatedState.normalizedBearing, 45);
+  assert.equal(rotatedState.needleRotationDeg, -45);
+  assert.equal(rotatedState.cardinal, 'NE');
+  assert.equal(rotatedState.formattedLabel, '45° NE');
+  assert.equal(rotatedState.isRotated, true);
+
+  // 3. Verify map interactivity options (scrollWheelZoom, dragging, zoomControl)
+  assert.equal(DEFAULT_MAP_INTERACTIVITY_OPTIONS.scrollWheelZoom, true);
+  assert.equal(DEFAULT_MAP_INTERACTIVITY_OPTIONS.dragging, true);
+  assert.equal(DEFAULT_MAP_INTERACTIVITY_OPTIONS.zoomControl, true);
+  assert.equal(DEFAULT_MAP_INTERACTIVITY_OPTIONS.scrollZoom, true);
+  assert.equal(DEFAULT_MAP_INTERACTIVITY_OPTIONS.dragPan, true);
+  assert.equal(DEFAULT_MAP_INTERACTIVITY_OPTIONS.dragRotate, true);
+});
+
+

@@ -500,3 +500,71 @@ export function calculateHaversineMiles(
 ): number {
   return Math.round(calculateHaversineKm(lat1, lon1, lat2, lon2) * 0.621371);
 }
+
+export type CardinalDirection = 'N' | 'NE' | 'E' | 'SE' | 'S' | 'SW' | 'W' | 'NW';
+
+export interface CompassIndicatorState {
+  normalizedBearing: number;
+  needleRotationDeg: number;
+  cardinal: CardinalDirection;
+  formattedLabel: string;
+  isRotated: boolean;
+}
+
+/**
+ * Normalizes any map bearing angle (degrees) into the [0, 360) range.
+ */
+export function normalizeCompassBearing(bearingDeg: number): number {
+  if (!Number.isFinite(bearingDeg)) return 0;
+  const normalized = ((bearingDeg % 360) + 360) % 360;
+  return Math.round(normalized) % 360;
+}
+
+/**
+ * Maps a bearing angle (degrees) to an 8-wind compass cardinal direction.
+ */
+export function getCardinalDirection(bearingDeg: number): CardinalDirection {
+  const deg = normalizeCompassBearing(bearingDeg);
+  const directions: CardinalDirection[] = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+  const index = Math.round(deg / 45) % 8;
+  return directions[index];
+}
+
+/**
+ * Computes the visual orientation state for the map compass indicator from the current map bearing & pitch.
+ */
+export function computeCompassIndicatorState(
+  bearingDeg: number,
+  pitchDeg = 0
+): CompassIndicatorState {
+  const normalizedBearing = normalizeCompassBearing(bearingDeg);
+  const needleRotationDeg = normalizedBearing === 0 ? 0 : -normalizedBearing;
+  const cardinal = getCardinalDirection(normalizedBearing);
+  const formattedLabel = `${normalizedBearing}° ${cardinal}`;
+  const isRotated = normalizedBearing !== 0 || Math.abs(pitchDeg) > 0.5;
+
+  return {
+    normalizedBearing,
+    needleRotationDeg,
+    cardinal,
+    formattedLabel,
+    isRotated,
+  };
+}
+
+/**
+ * Canonical map interactivity options ensuring scrollWheelZoom, dragging, and zoomControl
+ * are enabled so users can freely pan, zoom, and rotate the map view.
+ */
+export const DEFAULT_MAP_INTERACTIVITY_OPTIONS = {
+  scrollWheelZoom: true,
+  dragging: true,
+  zoomControl: true,
+  scrollZoom: true,
+  dragPan: true,
+  dragRotate: true,
+  touchZoomRotate: true,
+  doubleClickZoom: true,
+  keyboard: true,
+} as const;
+
