@@ -129,25 +129,25 @@ export const ShipmentsAnalyticsChart: React.FC<ShipmentsAnalyticsChartProps> = (
         {
           label: 'Sea Freight (SEA)',
           data: dailyAnalytics.seaSeries,
-          backgroundColor: '#072D59',
-          borderRadius: 4,
-          barPercentage: 0.75,
+          backgroundColor: '#2563EB',
+          borderRadius: 6,
+          barPercentage: 0.76,
           categoryPercentage: 0.72,
         },
         {
           label: 'Air Freight (AIR)',
           data: dailyAnalytics.airSeries,
-          backgroundColor: '#3E6FB4',
-          borderRadius: 4,
-          barPercentage: 0.75,
+          backgroundColor: '#3B82F6',
+          borderRadius: 6,
+          barPercentage: 0.76,
           categoryPercentage: 0.72,
         },
         {
           label: 'Road Freight (ROAD)',
           data: dailyAnalytics.roadSeries,
-          backgroundColor: '#5A8AC9',
-          borderRadius: 4,
-          barPercentage: 0.75,
+          backgroundColor: '#60A5FA',
+          borderRadius: 6,
+          barPercentage: 0.76,
           categoryPercentage: 0.72,
         },
       ],
@@ -169,10 +169,10 @@ export const ShipmentsAnalyticsChart: React.FC<ShipmentsAnalyticsChartProps> = (
             boxHeight: 10,
             usePointStyle: true,
             pointStyle: 'rectRounded',
-            color: '#6B7A93',
+            color: '#64748B',
             font: {
               family: "'Plus Jakarta Sans', sans-serif",
-              size: 11,
+              size: 11.5,
               weight: 500,
             },
           },
@@ -197,30 +197,30 @@ export const ShipmentsAnalyticsChart: React.FC<ShipmentsAnalyticsChartProps> = (
             display: false,
           },
           ticks: {
-            color: '#6B7A93',
+            color: '#64748B',
             font: {
               family: "'Plus Jakarta Sans', sans-serif",
               size: 11,
             },
           },
           border: {
-            color: '#E3E9F3',
+            color: '#E2E8F0',
           },
         },
         y: {
           beginAtZero: true,
           max: chartMode === 'daily_mode' ? 100 : undefined,
           grid: {
-            color: '#EEF2F8',
+            color: '#F1F5F9',
           },
           border: {
             display: false,
           },
           ticks: {
             stepSize: chartMode === 'daily_mode' ? 20 : undefined,
-            color: '#6B7A93',
+            color: '#64748B',
             font: {
-              family: "'JetBrains Mono', monospace",
+              family: "'Plus Jakarta Sans', sans-serif",
               size: 11,
             },
             callback: (value) =>
@@ -233,26 +233,25 @@ export const ShipmentsAnalyticsChart: React.FC<ShipmentsAnalyticsChartProps> = (
   );
 
   return (
-    <div className="bg-white border border-[#E3E9F3] rounded-xl p-4">
-      {/* Header matching image.png */}
+    <div className="bg-white border border-[#E2E8F0] rounded-2xl p-4 shadow-2xs">
+      {/* Header matching Yuke.inc reference */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
         <div className="flex items-center gap-2">
           <BarChart3 className="w-4 h-4 text-[#072D59]" />
-          <h2 className="text-[14px] font-semibold text-[#072D59]">
+          <h2 className="text-[14px] font-bold text-[#0F172A]">
             Shipments Analytics
           </h2>
         </div>
 
         <div className="flex flex-wrap items-center gap-4">
-          {/* Interactive Chart Dimension Switcher (Slide 10: by mode, status, carrier) */}
-          <div className="inline-flex items-center bg-[#F4F7FB] p-0.5 rounded-lg border border-[#E3E9F3]">
+          <div className="inline-flex items-center bg-[#F4F7FB] p-0.5 rounded-lg border border-[#E2E8F0]">
             <button
               type="button"
               onClick={() => setChartMode('daily_mode')}
               className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition-colors whitespace-nowrap ${
                 chartMode === 'daily_mode'
                   ? 'bg-[#072D59] text-white'
-                  : 'text-[#6B7A93] hover:text-[#072D59]'
+                  : 'text-[#64748B] hover:text-[#072D59]'
               }`}
             >
               Daily by Mode
@@ -263,7 +262,7 @@ export const ShipmentsAnalyticsChart: React.FC<ShipmentsAnalyticsChartProps> = (
               className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition-colors whitespace-nowrap ${
                 chartMode === 'by_status'
                   ? 'bg-[#072D59] text-white'
-                  : 'text-[#6B7A93] hover:text-[#072D59]'
+                  : 'text-[#64748B] hover:text-[#072D59]'
               }`}
             >
               By Status
@@ -274,28 +273,26 @@ export const ShipmentsAnalyticsChart: React.FC<ShipmentsAnalyticsChartProps> = (
               className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition-colors whitespace-nowrap ${
                 chartMode === 'by_carrier'
                   ? 'bg-[#072D59] text-white'
-                  : 'text-[#6B7A93] hover:text-[#072D59]'
+                  : 'text-[#64748B] hover:text-[#072D59]'
               }`}
             >
               By Carrier
             </button>
           </div>
 
-          {/* Peak & Avg summary text */}
-          <div className="flex items-center gap-2 text-[12.5px] text-[#475569] tabular-nums">
+          <div className="flex items-center gap-2 text-[12.5px] text-[#64748B] tabular-nums">
             <span>
-              Peak <strong className="text-[#072D59]">{dailyAnalytics.peak}%</strong>
+              Peak <strong className="text-[#0F172A]">{dailyAnalytics.peak}%</strong>
             </span>
             <span aria-hidden="true">·</span>
             <span>
-              Avg <strong className="text-[#072D59]">{dailyAnalytics.avg}%</strong>
+              Avg <strong className="text-[#0F172A]">{dailyAnalytics.avg}%</strong>
             </span>
           </div>
         </div>
       </div>
 
-      {/* Chart.js Canvas Container */}
-      <div className="w-full h-[180px]">
+      <div className="w-full h-[185px]">
         <Bar
           data={
             chartMode === 'daily_mode'

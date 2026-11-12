@@ -9,9 +9,17 @@ import {
 import {
   Anchor,
   Plane,
-  Truck,
   Building2,
 } from 'lucide-react';
+import seaShipPhoto from '../assets/images/vehicle_sea_ship_1794057883264.jpg';
+import airPlanePhoto from '../assets/images/vehicle_air_plane_1794057885938.jpg';
+import roadTruckPhoto from '../assets/images/vehicle_road_truck_1794057882262.jpg';
+
+export const VEHICLE_PHOTO_BY_MODE: Record<TransportMode, string> = {
+  [TransportMode.SEA]: seaShipPhoto,
+  [TransportMode.AIR]: airPlanePhoto,
+  [TransportMode.ROAD]: roadTruckPhoto,
+};
 
 export const ModeIconChip: React.FC<{
   mode: TransportMode;
@@ -20,43 +28,50 @@ export const ModeIconChip: React.FC<{
 }> = ({ mode, size = 'md', showLabel = false }) => {
   const config = {
     [TransportMode.SEA]: {
-      icon: Anchor,
-      bg: 'bg-[#DBF2FC]',
-      text: 'text-[#072D59]',
+      photo: seaShipPhoto,
+      bg: 'bg-[#F0F7FF]',
       border: 'border-[#B8E2F8]',
       label: 'Sea Freight',
+      alt: 'Container Vessel',
     },
     [TransportMode.AIR]: {
-      icon: Plane,
-      bg: 'bg-[#E6EEF9]',
-      text: 'text-[#072D59]',
+      photo: airPlanePhoto,
+      bg: 'bg-[#F2F6FC]',
       border: 'border-[#C6D9F1]',
       label: 'Air Freight',
+      alt: 'Cargo Freighter Aircraft',
     },
     [TransportMode.ROAD]: {
-      icon: Truck,
-      bg: 'bg-[#E4F3F5]',
-      text: 'text-[#072D59]',
+      photo: roadTruckPhoto,
+      bg: 'bg-[#F3FAF9]',
       border: 'border-[#BCE3E8]',
       label: 'Road Freight',
+      alt: 'Heavy Logistics Truck',
     },
   }[mode];
 
-  const IconComponent = config.icon;
   const boxSize =
-    size === 'sm' ? 'w-7 h-7 rounded-lg' : size === 'lg' ? 'w-10 h-10 rounded-xl' : 'w-9 h-9 rounded-lg';
-  const iconSize = size === 'sm' ? 'w-3.5 h-3.5' : size === 'lg' ? 'w-5 h-5' : 'w-4 h-4';
+    size === 'sm'
+      ? 'w-14 h-9 rounded-lg'
+      : size === 'lg'
+      ? 'w-20 h-12 rounded-xl'
+      : 'w-16 h-10 rounded-lg';
 
   return (
-    <div className="inline-flex items-center gap-2 shrink-0">
+    <div className="inline-flex items-center gap-2.5 shrink-0">
       <div
-        className={`${boxSize} ${config.bg} ${config.text} border ${config.border} flex items-center justify-center shrink-0`}
+        className={`${boxSize} ${config.bg} border ${config.border} overflow-hidden flex items-center justify-center shrink-0 shadow-2xs`}
         title={config.label}
       >
-        <IconComponent className={iconSize} strokeWidth={1.9} />
+        <img
+          src={config.photo}
+          alt={config.alt}
+          className="w-full h-full object-cover object-center"
+          loading="lazy"
+        />
       </div>
       {showLabel && (
-        <span className="text-[13px] font-medium text-[#1E293B] whitespace-nowrap">
+        <span className="text-[13px] font-semibold text-[#072D59] whitespace-nowrap">
           {config.label}
         </span>
       )}
@@ -146,10 +161,6 @@ export const ShipmentStatusBadge: React.FC<{
   );
 };
 
-/**
- * Clean unboxed text indicator for schedule variance / delay severity
- * (Follows Zero-Pill Metadata Discipline to avoid stacking multiple pill badges)
- */
 export const SeverityBadge: React.FC<{ severity: SeverityLevel }> = ({ severity }) => {
   if (severity === SeverityLevel.NONE) {
     return (
@@ -208,11 +219,10 @@ export const ExceptionStatusBadge: React.FC<{ status: ExceptionStatus }> = ({ st
 };
 
 /**
- * KPI Metric Card matching the reference screenshot (`image.png`)
- * Features:
- * 1. Top progress bar + percentage label
- * 2. Icon + title (no dead '...' button)
- * 3. Large tabular metric value + muted unit label
+ * KPI Metric Card matching the Yuke.inc reference screenshot (`image.png`):
+ * - Top progress bar + percentage separated by a clean hairline border
+ * - Middle icon + metric label
+ * - Large tabular value (`40/46`) + muted unit label (`Shipped`)
  */
 export const KpiStatCard: React.FC<{
   percentage: number;
@@ -247,39 +257,39 @@ export const KpiStatCard: React.FC<{
             }
           : undefined
       }
-      className={`bg-white border border-[#DCE4F0] rounded-xl p-4 transition-colors ${
-        onClick ? 'cursor-pointer hover:border-[#072D59]/50' : ''
+      className={`bg-white border border-[#E2E8F0] rounded-2xl px-4 py-3.5 transition-all shadow-2xs ${
+        onClick ? 'cursor-pointer hover:border-[#072D59]/40 hover:shadow-sm' : ''
       }`}
     >
-      {/* Top row: Thin colored progress bar + Percentage */}
-      <div className="flex items-center gap-2.5 mb-2.5">
-        <div className="flex-1 h-1.5 bg-[#EEF2F8] rounded-full overflow-hidden">
+      {/* Top row: Progress bar + Percentage with bottom hairline divider like Yuke.inc */}
+      <div className="flex items-center gap-2.5 pb-2.5 mb-2.5 border-b border-[#F1F5F9]">
+        <div className="flex-1 h-1.5 bg-[#EDF2F7] rounded-full overflow-hidden">
           <div
             className="h-full rounded-full transition-all duration-300"
             style={{ width: `${clampedPct}%`, backgroundColor: barColorHex }}
           />
         </div>
-        <span className="text-[12px] font-semibold text-[#1E293B] tabular-nums shrink-0">
+        <span className="text-[12px] font-semibold text-[#334155] tabular-nums shrink-0">
           {Math.round(percentage)}%
         </span>
       </div>
 
       {/* Middle row: Icon + Label */}
       <div className="flex items-center gap-2 mb-1.5">
-        <span className="text-[#072D59]">{icon}</span>
-        <span className="text-[13px] font-medium text-[#1E293B]">{label}</span>
+        <span className="text-[#475569] shrink-0">{icon}</span>
+        <span className="text-[12.5px] font-medium text-[#334155] truncate">{label}</span>
       </div>
 
       {/* Bottom row: Large value + muted unit */}
       <div className="flex items-baseline gap-1.5">
-        <span className="text-[22px] font-bold text-[#072D59] tabular-nums tracking-tight">
+        <span className="text-[22px] font-bold text-[#0F172A] tabular-nums tracking-tight leading-none">
           {primaryValue}
         </span>
-        <span className="text-[14.5px] font-normal text-[#475569]">{unitLabel}</span>
+        <span className="text-[16px] font-normal text-[#64748B] leading-none">{unitLabel}</span>
       </div>
 
       {subtitleNote && (
-        <div className="mt-1 text-[11.5px] text-[#475569] truncate">{subtitleNote}</div>
+        <div className="mt-1.5 text-[11px] text-[#64748B] truncate">{subtitleNote}</div>
       )}
     </div>
   );

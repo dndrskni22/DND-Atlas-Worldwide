@@ -80,6 +80,8 @@ import {
   ArrowUpDown,
   BookOpen,
   LogOut,
+  Trash2,
+  Compass,
 } from 'lucide-react';
 
 type ActiveSection =
@@ -177,8 +179,12 @@ export const App: React.FC = () => {
   // Modals & Drawers
   const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
   const [isNewShipmentOpen, setIsNewShipmentOpen] = useState(false);
-  const [trackingLookupInput, setTrackingLookupInput] = useState('CT-2026-000101');
+  const [trackingLookupInput, setTrackingLookupInput] = useState('DND-2026-000101');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // History / Audit Log Filter State
+  const [auditCategoryFilter, setAuditCategoryFilter] = useState<'ALL' | 'SHIPMENT' | 'EXCEPTION' | 'SETTINGS'>('ALL');
+  const [auditSearchQuery, setAuditSearchQuery] = useState('');
 
   // Weather Page State
   const [weatherSnapshots, setWeatherSnapshots] = useState<Record<string, WeatherSnapshot>>({});
@@ -293,7 +299,7 @@ export const App: React.FC = () => {
         }
 
         if (searchQuery.trim()) {
-          const q = searchQuery.toLowerCase().trim();
+          const q = searchQuery.toLowerCase().trim().replace(/^ct-2026-/, 'dnd-2026-');
           const orig = locMap.get(sh.origin_location_id);
           const dest = locMap.get(sh.destination_location_id);
           const car = carrierMap.get(sh.carrier_id);
@@ -416,6 +422,7 @@ export const App: React.FC = () => {
     });
 
     const rows: RouteVolumeRow[] = [];
+    const seenRouteKeys = new Set<string>();
     groups.forEach((groupShipments) => {
       const first = groupShipments[0];
       const origin = locMap.get(first.origin_location_id);
@@ -458,8 +465,14 @@ export const App: React.FC = () => {
       const activeRep =
         groupShipments.find((s) => s.status === ShipmentStatus.IN_TRANSIT) || first;
 
+      const candidateCodeKey = `${first.route_code}-${first.mode}`;
+      const uniqueRouteCode = seenRouteKeys.has(candidateCodeKey)
+        ? `${first.route_code}-${origin.code}-${destination.code}`
+        : first.route_code;
+      seenRouteKeys.add(candidateCodeKey);
+
       rows.push({
-        route_code: first.route_code,
+        route_code: uniqueRouteCode,
         origin,
         destination,
         carrier,
@@ -532,7 +545,7 @@ export const App: React.FC = () => {
     }
 
     const nextId = Math.max(...shipments.map((s) => s.id)) + 1;
-    const shipmentNumber = `CT-2026-000${nextId}`;
+    const shipmentNumber = `DND-2026-000${nextId}`;
     const nowIso = new Date().toISOString();
 
     const newShipment: Shipment = {
@@ -955,24 +968,29 @@ export const App: React.FC = () => {
       {/* LEFT SIDEBAR */}
       <aside
         className={`${
-          sidebarCollapsed ? 'w-[68px]' : 'w-[244px]'
+          sidebarCollapsed ? 'w-[68px]' : 'w-[256px]'
         } h-screen overflow-y-auto bg-white border-r border-[#DCE4F0] flex flex-col justify-between shrink-0 transition-all duration-200 select-none`}
       >
-        {/* Top Workspace Header — No dead chevron next to CargoTrace */}
+        {/* Top Workspace Header — DND Atlas Worldwide */}
         <div>
-          <div className="h-[56px] px-3.5 border-b border-[#DCE4F0] flex items-center justify-between gap-2">
+          <div className="h-[58px] px-3 border-b border-[#E2E8F0] flex items-center justify-between gap-1.5">
             <button
               type="button"
               onClick={() => setActiveSection('overview')}
-              className="flex items-center gap-2.5 overflow-hidden text-left cursor-pointer"
+              className="flex items-center gap-2 overflow-hidden text-left cursor-pointer min-w-0"
             >
-              <div className="w-7 h-7 rounded-lg bg-[#072D59] text-[#DBF2FC] flex items-center justify-center font-bold text-xs shrink-0">
+              <div className="w-8 h-8 rounded-lg bg-[#072D59] text-[#DBF2FC] flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs">
                 <Anchor className="w-4 h-4" />
               </div>
               {!sidebarCollapsed && (
-                <span className="font-bold text-[15px] text-[#072D59] tracking-tight truncate">
-                  CargoTrace
-                </span>
+                <div className="leading-tight min-w-0">
+                  <div className="font-extrabold text-[13px] text-[#072D59] tracking-tight whitespace-nowrap">
+                    DND Atlas Worldwide
+                  </div>
+                  <div className="text-[10px] font-semibold text-[#64748B] truncate">
+                    Global Logistics Portal
+                  </div>
+                </div>
               )}
             </button>
 
@@ -1141,42 +1159,41 @@ export const App: React.FC = () => {
 
       {/* MAIN WORKSPACE CONTENT AREA */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* TOP BAR — Clean unboxed breadcrumb & timestamp on left, primary action on right */}
-        <header className="h-[56px] bg-white border-b border-[#DCE4F0] px-6 flex items-center justify-between gap-4 shrink-0">
-          {/* Left: Clean Breadcrumb + Unboxed Operational Date/Time */}
-          <div className="flex items-center gap-3 text-[13px] min-w-0">
-            <span className="font-semibold text-[#072D59] truncate">
+        {/* TOP BAR — Clean unclipped section breadcrumb & timestamp on left, actions on right */}
+        <header className="h-[58px] bg-white border-b border-[#E2E8F0] px-5 flex items-center justify-between gap-4 shrink-0">
+          {/* Left: Clean Section Name + Timestamp (Never truncates to Lo... or Tr...) */}
+          <div className="flex items-center gap-2.5 text-[13px] whitespace-nowrap">
+            <span className="font-bold text-[#072D59]">
               {SECTION_LABELS[activeSection]}
             </span>
-            <span className="text-[#CBD5E1]" aria-hidden="true">/</span>
-            <span className="text-[#475569] tabular-nums whitespace-nowrap">
+            <span className="text-[#CBD5E1]" aria-hidden="true">·</span>
+            <span className="text-[#64748B] tabular-nums text-[12.5px]">
               {serverClock} UTC
             </span>
           </div>
 
-          {/* Right: User Context + Primary Action Button + Sign Out */}
-          <div className="flex items-center gap-4 shrink-0">
-            <div className="hidden md:flex items-center gap-1.5 text-[12.5px] text-[#475569]">
-              <span className="font-semibold text-[#072D59]">{currentUser.name}</span>
-              <span aria-hidden="true">·</span>
-              <span>{currentUser.company_name}</span>
-            </div>
+          {/* Right: User Badge + Primary Action Button + Sign Out */}
+          <div className="flex items-center gap-2.5 shrink-0">
+            <span className="hidden xl:inline-flex items-center gap-1.5 text-[12.5px] text-[#475569] mr-1">
+              <strong className="font-semibold text-[#072D59]">{currentUser.name}</strong>
+              <span>({formatEnumLabel(currentUser.role)})</span>
+            </span>
 
             {canMutate && (
               <button
                 type="button"
                 onClick={() => setIsNewShipmentOpen(true)}
-                className="px-3.5 py-1.5 rounded-lg bg-[#072D59] hover:bg-[#051F3E] text-white text-[12.5px] font-semibold transition-colors inline-flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
+                className="px-3.5 py-1.5 rounded-lg bg-[#072D59] hover:bg-[#051F3E] text-white text-[12.5px] font-semibold transition-colors inline-flex items-center gap-1.5 whitespace-nowrap cursor-pointer shadow-2xs"
               >
                 <Plus className="w-4 h-4" />
-                <span>New shipment</span>
+                <span>Add Shipping</span>
               </button>
             )}
 
             <button
               type="button"
               onClick={handleSignOut}
-              className="px-2.5 py-1.5 rounded-lg border border-[#DCE4F0] text-[#475569] hover:text-[#072D59] hover:bg-[#F8FAFC] text-[12px] font-medium transition-colors inline-flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
+              className="px-2.5 py-1.5 rounded-lg border border-[#E2E8F0] text-[#475569] hover:text-[#072D59] hover:bg-[#F8FAFC] text-[12px] font-medium transition-colors inline-flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
             >
               <LogOut className="w-3.5 h-3.5" />
               <span>Sign out</span>
@@ -1186,7 +1203,7 @@ export const App: React.FC = () => {
 
         {/* Toast Notification Banner */}
         {toastMessage && (
-          <div className="mx-6 mt-4 px-4 py-2.5 rounded-xl bg-[#072D59] text-white text-[12.5px] font-medium flex items-center justify-between shadow-md">
+          <div className="mx-5 mt-3 px-4 py-2.5 rounded-xl bg-[#072D59] text-white text-[12.5px] font-medium flex items-center justify-between shadow-md">
             <span className="flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-[#DBF2FC]" />
               {toastMessage}
@@ -1204,35 +1221,29 @@ export const App: React.FC = () => {
         {/* PAGE VIEWPORT */}
         <main className="flex-1 p-5 space-y-4 overflow-y-auto">
           {/* ===================================================================
-              SECTION 1: LOGISTICS OVERVIEW DASHBOARD
+              SECTION 1: LOGISTICS OVERVIEW DASHBOARD (Yuke.inc Reference Layout)
           =================================================================== */}
           {activeSection === 'overview' && (
-            <div className="space-y-3.5">
-              {/* Page Header */}
-              <div className="flex flex-wrap items-end justify-between gap-3">
-                <div>
-                  <h1 className="text-[21px] font-bold text-[#072D59] tracking-tight">
-                    Logistics Overview
-                  </h1>
-                  <p className="text-[13px] text-[#475569]">
-                    Track multimodal shipments ({settings.primary_route_focus}), delay threshold ({settings.delay_threshold_hours}h), and delivery performance
-                  </p>
-                </div>
-                <div className="text-[12.5px] text-[#475569] tabular-nums">
-                  {settings.group_name} · Primary KPI: <strong className="text-[#072D59]">{settings.group_kpi_label} ({kpiMetrics.onTimeRate}%)</strong>
-                </div>
+            <div className="space-y-4">
+              {/* Page Header matching Yuke.inc */}
+              <div>
+                <h1 className="text-[21px] font-bold text-[#0F172A] tracking-tight">
+                  Logistics Overview
+                </h1>
+                <p className="text-[13px] text-[#64748B]">
+                  Track shipments, corridor capacity, and delivery performance ({settings.primary_route_focus} · {settings.delay_threshold_hours}h threshold)
+                </p>
               </div>
 
-              {/* Row of 4 KPI Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Single 4-Column Row of KPI Cards (md:grid-cols-4 so all 4 sit in 1 row like Yuke.inc) */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
                 <KpiStatCard
                   percentage={kpiMetrics.onTimeRate}
-                  barColorHex="#072D59"
+                  barColorHex="#1E40AF"
                   icon={<CheckCircle2 className="w-4 h-4" />}
                   label="On-Time Delivery"
                   primaryValue={`${kpiMetrics.onTimeCount}/${kpiMetrics.total}`}
                   unitLabel="Shipped"
-                  subtitleNote="Group KPI · Target ≥ 85%"
                   onClick={() => {
                     setStatusFilter('ALL');
                     setActiveSection('shipments');
@@ -1241,12 +1252,11 @@ export const App: React.FC = () => {
 
                 <KpiStatCard
                   percentage={kpiMetrics.inTransitRate}
-                  barColorHex="#3AA0AB"
+                  barColorHex="#E11D48"
                   icon={<Navigation className="w-4 h-4" />}
                   label="In Transit"
                   primaryValue={`${kpiMetrics.inTransit}/${kpiMetrics.total}`}
                   unitLabel="Active"
-                  subtitleNote="Sea, Air & Road active corridors"
                   onClick={() => {
                     setStatusFilter(ShipmentStatus.IN_TRANSIT);
                     setActiveSection('shipments');
@@ -1255,12 +1265,11 @@ export const App: React.FC = () => {
 
                 <KpiStatCard
                   percentage={kpiMetrics.delayedRate}
-                  barColorHex="#FD6E88"
-                  icon={<Clock className="w-4 h-4 text-[#FD6E88]" />}
+                  barColorHex="#F59E0B"
+                  icon={<Clock className="w-4 h-4" />}
                   label="Delayed Shipments"
                   primaryValue={`${kpiMetrics.delayedCount}/${kpiMetrics.total}`}
                   unitLabel="Delayed"
-                  subtitleNote={`${kpiMetrics.thresholdExceededCount} exceed ${settings.delay_threshold_hours}h threshold`}
                   onClick={() => {
                     setStatusFilter('DELAYED');
                     setActiveSection('shipments');
@@ -1269,19 +1278,18 @@ export const App: React.FC = () => {
 
                 <KpiStatCard
                   percentage={kpiMetrics.openExceptionRate}
-                  barColorHex="#3E6FB4"
+                  barColorHex="#0D9488"
                   icon={<AlertTriangle className="w-4 h-4" />}
                   label="Open Exceptions"
                   primaryValue={`${kpiMetrics.openExceptions}/${kpiMetrics.totalExceptions}`}
-                  unitLabel="Open Holds"
-                  subtitleNote={`Primary focus: ${formatEnumLabel(settings.main_exception_focus)}`}
+                  unitLabel="Resolved"
                   onClick={() => setActiveSection('exceptions')}
                 />
               </div>
 
-              {/* Toolbar Row */}
-              <div className="bg-white border border-[#DCE4F0] rounded-xl p-2.5 flex flex-wrap items-center justify-between gap-3">
-                <div className="flex flex-wrap items-center gap-2.5 flex-1 min-w-[260px]">
+              {/* Filter & Search Toolbar Row matching Yuke.inc */}
+              <div className="flex flex-wrap items-center justify-between gap-2.5">
+                <div className="flex items-center gap-2.5 flex-1 min-w-[260px]">
                   <select
                     aria-label="Filter by transport mode"
                     value={modeFilter}
@@ -1289,16 +1297,16 @@ export const App: React.FC = () => {
                       setModeFilter(e.target.value as 'ALL' | TransportMode);
                       setCurrentPage(1);
                     }}
-                    className="bg-[#F8FAFC] border border-[#DCE4F0] rounded-lg px-3 py-1.5 text-[12.5px] font-semibold text-[#072D59] focus:outline-none focus:border-[#072D59]"
+                    className="bg-white border border-[#E2E8F0] rounded-xl px-3.5 py-2 text-[12.5px] font-semibold text-[#0F172A] shadow-2xs focus:outline-none focus:border-[#072D59]"
                   >
-                    <option value="ALL">All Modes</option>
-                    <option value={TransportMode.SEA}>Sea Freight (SEA)</option>
-                    <option value={TransportMode.AIR}>Air Freight (AIR)</option>
-                    <option value={TransportMode.ROAD}>Road Freight (ROAD)</option>
+                    <option value="ALL">Shipping (All)</option>
+                    <option value={TransportMode.SEA}>Sea Freight</option>
+                    <option value={TransportMode.AIR}>Air Freight</option>
+                    <option value={TransportMode.ROAD}>Road Freight</option>
                   </select>
 
-                  <div className="relative flex-1 min-w-[200px]">
-                    <Search className="w-4 h-4 text-[#475569] absolute left-3 top-1/2 -translate-y-1/2" />
+                  <div className="relative flex-1">
+                    <Search className="w-4 h-4 text-[#94A3B8] absolute left-3.5 top-1/2 -translate-y-1/2" />
                     <input
                       type="text"
                       aria-label="Search shipments, routes, carriers, or cities"
@@ -1307,24 +1315,24 @@ export const App: React.FC = () => {
                         setSearchQuery(e.target.value);
                         setCurrentPage(1);
                       }}
-                      placeholder="Search shipment CT-2026-..., route, carrier, city..."
-                      className="w-full bg-[#F8FAFC] border border-[#DCE4F0] rounded-lg pl-9 pr-3 py-1.5 text-[12.5px] text-[#1E293B] placeholder:text-[#64748B] focus:outline-none focus:bg-white focus:border-[#072D59]"
+                      placeholder="Search shipment DND-2026-..., route, carrier, city..."
+                      className="w-full bg-white border border-[#E2E8F0] rounded-xl pl-9 pr-3 py-2 text-[12.5px] text-[#0F172A] placeholder:text-[#94A3B8] shadow-2xs focus:outline-none focus:border-[#072D59]"
                     />
                   </div>
                 </div>
 
                 {/* Segmented Time-Range Control */}
-                <div className="flex items-center gap-1 bg-[#F8FAFC] p-1 rounded-lg border border-[#DCE4F0]">
+                <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-[#E2E8F0] shadow-2xs">
                   {(['15m', '1h', '24h', '3d', '7d', 'all'] as TimeRangeSegment[]).map(
                     (seg) => (
                       <button
                         key={seg}
                         type="button"
                         onClick={() => setTimeSegment(seg)}
-                        className={`px-2.5 py-1 rounded-md text-[11.5px] font-semibold transition-colors tabular-nums uppercase ${
+                        className={`px-2.5 py-1 rounded-lg text-[11.5px] font-semibold transition-colors tabular-nums ${
                           timeSegment === seg
                             ? 'bg-[#072D59] text-white shadow-2xs'
-                            : 'text-[#475569] hover:text-[#072D59]'
+                            : 'text-[#64748B] hover:text-[#072D59]'
                         }`}
                       >
                         {seg}
@@ -1340,139 +1348,139 @@ export const App: React.FC = () => {
                 carriers={carriers}
               />
 
-              {/* Popular Routes Table Card */}
-              <div className="bg-white border border-[#DCE4F0] rounded-xl overflow-hidden">
-                <div className="px-5 py-4 border-b border-[#DCE4F0] flex flex-wrap items-center justify-between gap-3">
+              {/* Popular Routes Section matching Yuke.inc */}
+              <div className="space-y-2.5">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
-                    <h2 className="text-[15px] font-bold text-[#072D59]">
+                    <h2 className="text-[16px] font-bold text-[#0F172A]">
                       Popular routes
                     </h2>
-                    <p className="text-[12.5px] text-[#475569]">
-                      Ranked by shipment volume · November 2026 ({popularRoutes.length} active corridors)
+                    <p className="text-[12px] text-[#64748B]">
+                      Ranked by shipment volume · November 2026
                     </p>
                   </div>
 
                   <button
                     type="button"
                     onClick={handleExportCsv}
-                    className="px-3 py-1.5 rounded-lg border border-[#DCE4F0] bg-white hover:bg-[#F8FAFC] text-[#072D59] text-[12px] font-semibold inline-flex items-center gap-1.5 transition-colors"
+                    className="px-3.5 py-1.5 rounded-xl border border-[#E2E8F0] bg-white hover:bg-[#F8FAFC] text-[#0F172A] text-[12px] font-semibold inline-flex items-center gap-1.5 shadow-2xs transition-colors"
                   >
                     <Download className="w-3.5 h-3.5" />
-                    <span>Export CSV</span>
+                    <span>Export</span>
                   </button>
                 </div>
 
-                {popularRoutes.length === 0 ? (
-                  <div className="p-10 text-center text-[#6B7A93] text-[13px]">
-                    No routes match the current filter criteria. Try resetting the mode or time range filter.
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse text-[12.5px]">
-                      <thead>
-                        <tr className="border-b border-[#E3E9F3] text-[#6B7A93] text-[11px] bg-[#F4F7FB]/60">
-                          <th className="py-2.5 px-4 font-medium">Route</th>
-                          <th className="py-2.5 px-3 font-medium">Carrier / vehicle</th>
-                          <th className="py-2.5 px-3 font-medium">Status</th>
-                          <th className="py-2.5 px-3 font-medium">Mode</th>
-                          <th className="py-2.5 px-3 font-medium">Distance</th>
-                          <th className="py-2.5 px-3 font-medium text-right">Shipments</th>
-                          <th className="py-2.5 px-3 font-medium text-right">Avg. transit</th>
-                          <th className="py-2.5 px-4 font-medium text-right">On-time rate</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-[#E3E9F3]">
-                        {popularRoutes.map((row) => {
-                          const initials = `${row.origin.city[0] || 'O'}${
-                            row.destination.city[0] || 'D'
-                          }`.toUpperCase();
-                          return (
-                            <tr
-                              key={`${row.route_code}-${row.origin.id}-${row.destination.id}-${row.mode}`}
-                              onClick={() => {
-                                const found = shipments.find(
-                                  (s) => s.id === row.sample_shipment_id
-                                );
-                                if (found) setSelectedShipment(found);
-                              }}
-                              className="hover:bg-[#DBF2FC]/35 cursor-pointer transition-colors"
-                            >
-                              {/* Route Column (Initials badge + Origin To Destination + route code) */}
-                              <td className="py-2.5 px-4">
-                                <div className="flex items-center gap-2.5">
-                                  <div className="w-8 h-8 rounded-lg bg-[#DBF2FC] text-[#072D59] font-bold text-[11.5px] flex items-center justify-center shrink-0 border border-[#B8E2F8]">
-                                    {initials}
-                                  </div>
-                                  <div>
-                                    <div className="font-semibold text-[#072D59] whitespace-nowrap">
-                                      {row.origin.city}{' '}
-                                      <span className="text-[#6B7A93] font-normal">To</span>{' '}
-                                      {row.destination.city}
+                <div className="bg-white border border-[#E2E8F0] rounded-2xl overflow-hidden shadow-2xs">
+                  {popularRoutes.length === 0 ? (
+                    <div className="p-10 text-center text-[#64748B] text-[13px]">
+                      No routes match the current filter criteria. Try resetting the mode or time range filter.
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse text-[12.5px]">
+                        <thead>
+                          <tr className="border-b border-[#EEF2F7] text-[#64748B] text-[11.5px] bg-[#FAFBFD]">
+                            <th className="py-3 px-4 font-medium">Route</th>
+                            <th className="py-3 px-3 font-medium">Carrier / vehicle</th>
+                            <th className="py-3 px-3 font-medium">Status</th>
+                            <th className="py-3 px-3 font-medium">Mode</th>
+                            <th className="py-3 px-3 font-medium">Distance</th>
+                            <th className="py-3 px-3 font-medium text-right">Shipments</th>
+                            <th className="py-3 px-3 font-medium text-right">Avg. transit</th>
+                            <th className="py-3 px-4 font-medium text-right">On-time rate</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[#F1F5F9]">
+                          {popularRoutes.map((row) => {
+                            const initials = `${row.origin.city[0] || 'O'}${
+                              row.destination.city[0] || 'D'
+                            }`.toUpperCase();
+                            return (
+                              <tr
+                                key={`${row.route_code}-${row.origin.id}-${row.destination.id}-${row.mode}`}
+                                onClick={() => {
+                                  const found = shipments.find(
+                                    (s) => s.id === row.sample_shipment_id
+                                  );
+                                  if (found) setSelectedShipment(found);
+                                }}
+                                className="hover:bg-[#F8FAFC] cursor-pointer transition-colors"
+                              >
+                                {/* Route Column (Initials badge + Origin To Destination + route code) */}
+                                <td className="py-3 px-4">
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-9 h-9 rounded-lg bg-[#FFF4ED] text-[#C2410C] font-bold text-[11.5px] flex items-center justify-center shrink-0 border border-[#FFEDD5]">
+                                      {initials}
                                     </div>
-                                    <div className="text-[11px] text-[#6B7A93] font-mono-tabular">
-                                      {row.route_code} · {row.origin.code} → {row.destination.code}
-                                    </div>
-                                  </div>
-                                </div>
-                              </td>
-
-                              {/* Carrier / Vehicle Column (Mode icon chip + carrier name + vehicle model) */}
-                              <td className="py-2.5 px-3">
-                                <div className="flex items-center gap-2.5">
-                                  <ModeIconChip mode={row.mode} size="sm" />
-                                  <div>
-                                    <div className="font-semibold text-[#072D59] whitespace-nowrap">
-                                      {row.carrier.name}
-                                    </div>
-                                    <div className="text-[11px] text-[#6B7A93] font-mono-tabular">
-                                      {row.vehicle_ref}
+                                    <div>
+                                      <div className="font-bold text-[#0F172A] whitespace-nowrap">
+                                        {row.origin.city}{' '}
+                                        <span className="text-[#94A3B8] font-normal">To</span>{' '}
+                                        {row.destination.city}
+                                      </div>
+                                      <div className="text-[11px] text-[#64748B] tabular-nums">
+                                        {row.route_code}
+                                      </div>
                                     </div>
                                   </div>
-                                </div>
-                              </td>
+                                </td>
 
-                              {/* Status Badge */}
-                              <td className="py-2.5 px-3">
-                                <ShipmentStatusBadge
-                                  status={row.representative_status}
-                                  isDelayed={row.is_delayed}
-                                />
-                              </td>
+                                {/* Carrier / Vehicle Column (Real Vehicle Photo + Carrier Name + Vehicle Model) */}
+                                <td className="py-3 px-3">
+                                  <div className="flex items-center gap-3">
+                                    <ModeIconChip mode={row.mode} size="md" />
+                                    <div>
+                                      <div className="font-bold text-[#0F172A] whitespace-nowrap">
+                                        {row.carrier.name}
+                                      </div>
+                                      <div className="text-[11.5px] text-[#64748B] whitespace-nowrap">
+                                        {row.vehicle_ref}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </td>
 
-                              {/* Mode */}
-                              <td className="py-2.5 px-3 whitespace-nowrap text-[12px] text-[#6B7A93]">
-                                <strong className="text-[#072D59]">{row.mode}</strong> · {row.mode_label}
-                              </td>
+                                {/* Status Badge */}
+                                <td className="py-3 px-3">
+                                  <ShipmentStatusBadge
+                                    status={row.representative_status}
+                                    isDelayed={row.is_delayed}
+                                  />
+                                </td>
 
-                              {/* Distance (Haversine approx) */}
-                              <td className="py-2.5 px-3 font-mono-tabular font-semibold text-[#072D59] whitespace-nowrap">
-                                {row.distance_mi.toLocaleString()} mi
-                                <span className="block text-[10px] font-normal text-[#6B7A93]">
-                                  ({row.distance_km.toLocaleString()} km)
-                                </span>
-                              </td>
+                                {/* Mode */}
+                                <td className="py-3 px-3 whitespace-nowrap text-[12px] text-[#64748B]">
+                                  <span className="text-[#64748B]">{formatEnumLabel(row.mode)}</span>{' '}
+                                  <strong className="text-[#0F172A]">{row.mode_label}</strong>
+                                </td>
 
-                              {/* Shipments Count */}
-                              <td className="py-2.5 px-3 text-right font-mono-tabular font-bold text-[#072D59]">
-                                {row.shipment_count}
-                              </td>
+                                {/* Distance */}
+                                <td className="py-3 px-3 tabular-nums font-bold text-[#0F172A] whitespace-nowrap">
+                                  {row.distance_mi.toLocaleString()} mi
+                                </td>
 
-                              {/* Avg Transit */}
-                              <td className="py-2.5 px-3 text-right font-mono-tabular font-semibold text-[#243350] whitespace-nowrap">
-                                {row.avg_transit_days} days
-                              </td>
+                                {/* Shipments Count */}
+                                <td className="py-3 px-3 text-right tabular-nums font-bold text-[#0F172A]">
+                                  {row.shipment_count}
+                                </td>
 
-                              {/* On-Time Rate */}
-                              <td className="py-2.5 px-4 text-right font-mono-tabular font-bold text-[#072D59]">
-                                {row.on_time_rate}%
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
+                                {/* Avg Transit */}
+                                <td className="py-3 px-3 text-right tabular-nums font-bold text-[#0F172A] whitespace-nowrap">
+                                  {row.avg_transit_days} days
+                                </td>
+
+                                {/* On-Time Rate */}
+                                <td className="py-3 px-4 text-right tabular-nums font-bold text-[#0F172A]">
+                                  {row.on_time_rate}%
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -1487,7 +1495,7 @@ export const App: React.FC = () => {
                   Shipment Tracking & Timeline Inspector
                 </h1>
                 <p className="text-[13px] text-[#6B7A93]">
-                  Look up any shipment by reference number (e.g. CT-2026-000101) to inspect chronological events, current location, and deterministic ETA rules
+                  Look up any shipment by reference number (e.g. DND-2026-000101) to inspect chronological events, current location, and deterministic ETA rules
                 </p>
               </div>
 
@@ -1495,10 +1503,12 @@ export const App: React.FC = () => {
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
+                    const normalizedInput = trackingLookupInput
+                      .trim()
+                      .toLowerCase()
+                      .replace(/^ct-2026-/, 'dnd-2026-');
                     const found = roleScopedShipments.find(
-                      (s) =>
-                        s.shipment_number.toLowerCase() ===
-                        trackingLookupInput.trim().toLowerCase()
+                      (s) => s.shipment_number.toLowerCase() === normalizedInput
                     );
                     if (found) {
                       setSelectedShipment(found);
@@ -1516,7 +1526,7 @@ export const App: React.FC = () => {
                       type="text"
                       value={trackingLookupInput}
                       onChange={(e) => setTrackingLookupInput(e.target.value)}
-                      placeholder="Enter Shipment Number (e.g. CT-2026-000101, CT-2026-000201, CT-2026-000301)..."
+                      placeholder="Enter Shipment Number (e.g. DND-2026-000101, DND-2026-000201, DND-2026-000301)..."
                       className="w-full bg-[#F4F7FB] border border-[#E3E9F3] rounded-lg pl-10 pr-4 py-2 text-[13px] font-mono-tabular text-[#072D59] focus:bg-white focus:border-[#072D59] focus:outline-none"
                     />
                   </div>
@@ -1638,20 +1648,21 @@ export const App: React.FC = () => {
           =================================================================== */}
           {activeSection === 'shipments' && (
             <div className="space-y-4">
+              {/* Top Header & Actions */}
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <h1 className="text-[21px] font-bold text-[#072D59]">
-                    Shipments Directory
+                  <h1 className="text-[21px] font-bold text-[#072D59] tracking-tight">
+                    My Orders & Shipments Directory
                   </h1>
-                  <p className="text-[13px] text-[#6B7A93]">
-                    Full operational shipments ledger with multimodal filtering, status filter, and server-style pagination
+                  <p className="text-[13px] text-[#64748B]">
+                    Operational multimodal shipments ledger with status tabs, carrier manifest details, and pagination
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={handleExportCsv}
-                    className="px-3 py-1.5 rounded-lg border border-[#E3E9F3] bg-white hover:bg-[#DBF2FC]/50 text-[#072D59] text-[12px] font-semibold inline-flex items-center gap-1.5"
+                    className="px-3.5 py-2 rounded-lg border border-[#CBD5E1] bg-white hover:bg-[#F8FAFC] text-[#072D59] text-[12px] font-semibold inline-flex items-center gap-1.5 cursor-pointer transition-colors"
                   >
                     <Download className="w-3.5 h-3.5" />
                     <span>Export CSV</span>
@@ -1660,7 +1671,7 @@ export const App: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setIsNewShipmentOpen(true)}
-                      className="px-3.5 py-1.5 rounded-lg bg-[#072D59] text-white text-[12px] font-semibold inline-flex items-center gap-1.5"
+                      className="px-3.5 py-2 rounded-lg bg-[#072D59] hover:bg-[#051F3E] text-white text-[12px] font-semibold inline-flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
                     >
                       <Plus className="w-3.5 h-3.5" />
                       <span>New shipment</span>
@@ -1669,83 +1680,168 @@ export const App: React.FC = () => {
                 </div>
               </div>
 
-              {/* Filter Bar */}
-              <div className="bg-white border border-[#E3E9F3] rounded-xl p-3 flex flex-wrap items-center gap-3">
-                <select
-                  aria-label="Filter shipments by mode"
-                  value={modeFilter}
-                  onChange={(e) => {
-                    setModeFilter(e.target.value as 'ALL' | TransportMode);
-                    setCurrentPage(1);
-                  }}
-                  className="bg-[#F4F7FB] border border-[#E3E9F3] rounded-lg px-3 py-1.5 text-[12.5px] font-semibold text-[#072D59]"
-                >
-                  <option value="ALL">All Modes (Sea / Air / Road)</option>
-                  <option value={TransportMode.SEA}>Sea Freight</option>
-                  <option value={TransportMode.AIR}>Air Freight</option>
-                  <option value={TransportMode.ROAD}>Road Freight</option>
-                </select>
+              {/* Unified Filter Card: Quick Status Tabs + Single-Row Search/Mode/Sort Toolbar */}
+              <div className="bg-white border border-[#DCE4F0] rounded-xl p-3.5 space-y-3 shadow-2xs">
+                {/* Quick Status Filter Tabs */}
+                <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-[#EEF2F8]">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {(
+                      [
+                        {
+                          id: 'ALL',
+                          label: 'All Orders',
+                          count: roleScopedShipments.length,
+                        },
+                        {
+                          id: ShipmentStatus.IN_TRANSIT,
+                          label: 'In Transit',
+                          count: roleScopedShipments.filter((s) => s.status === ShipmentStatus.IN_TRANSIT).length,
+                        },
+                        {
+                          id: 'DELAYED',
+                          label: 'Delayed / Hold',
+                          count: roleScopedShipments.filter((s) => {
+                            const ev = EtaService.evaluate(s.expected_arrival, s.estimated_arrival, settings);
+                            return ev.is_delayed && s.status !== ShipmentStatus.DELIVERED;
+                          }).length,
+                        },
+                        {
+                          id: ShipmentStatus.BOOKED,
+                          label: 'Booked',
+                          count: roleScopedShipments.filter((s) => s.status === ShipmentStatus.BOOKED).length,
+                        },
+                        {
+                          id: ShipmentStatus.PICKED_UP,
+                          label: 'Picked Up',
+                          count: roleScopedShipments.filter((s) => s.status === ShipmentStatus.PICKED_UP).length,
+                        },
+                        {
+                          id: ShipmentStatus.DELIVERED,
+                          label: 'Delivered',
+                          count: roleScopedShipments.filter((s) => s.status === ShipmentStatus.DELIVERED).length,
+                        },
+                      ] as const
+                    ).map((tab) => {
+                      const active = statusFilter === tab.id;
+                      return (
+                        <button
+                          key={tab.id}
+                          type="button"
+                          onClick={() => {
+                            setStatusFilter(tab.id);
+                            setCurrentPage(1);
+                          }}
+                          className={`px-3 py-1.5 rounded-lg text-[12px] font-semibold inline-flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
+                            active
+                              ? tab.id === 'DELAYED'
+                                ? 'bg-[#FFF0F3] text-[#9F1D35] border border-[#FD6E88]'
+                                : 'bg-[#072D59] text-white'
+                              : 'bg-[#F4F7FB] text-[#475569] hover:text-[#072D59] hover:bg-[#E2E8F0]/60'
+                          }`}
+                        >
+                          <span>{tab.label}</span>
+                          <span
+                            className={`text-[11px] tabular-nums font-bold px-1.5 py-0.2 rounded ${
+                              active
+                                ? tab.id === 'DELAYED'
+                                  ? 'bg-[#FD6E88] text-white'
+                                  : 'bg-white/20 text-white'
+                                : 'bg-white text-[#072D59]'
+                            }`}
+                          >
+                            {tab.count}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
 
-                <select
-                  aria-label="Filter shipments by status"
-                  value={statusFilter}
-                  onChange={(e) => {
-                    setStatusFilter(e.target.value as 'ALL' | ShipmentStatus | 'DELAYED');
-                    setCurrentPage(1);
-                  }}
-                  className="bg-[#F4F7FB] border border-[#E3E9F3] rounded-lg px-3 py-1.5 text-[12.5px] font-semibold text-[#072D59]"
-                >
-                  <option value="ALL">All Statuses</option>
-                  <option value="DELAYED">Delayed Only (ETA &gt; Expected)</option>
-                  {Object.values(ShipmentStatus).map((st) => (
-                    <option key={st} value={st}>
-                      {formatEnumLabel(st)}
-                    </option>
-                  ))}
-                </select>
-
-                <div className="relative flex-1 min-w-[200px]">
-                  <Search className="w-4 h-4 text-[#6B7A93] absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => {
-                      setSearchQuery(e.target.value);
-                      setCurrentPage(1);
-                    }}
-                    placeholder="Filter by CT-2026-..., customer, vehicle, cargo, port..."
-                    className="w-full bg-[#F4F7FB] border border-[#E3E9F3] rounded-lg pl-9 pr-3 py-1.5 text-[12.5px]"
-                  />
+                  <span className="text-[11.5px] text-[#64748B] tabular-nums">
+                    Showing <strong className="text-[#072D59]">{filteredShipments.length}</strong> matching orders
+                  </span>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSortField((f) =>
-                      f === 'expected_arrival' ? 'shipment_number' : 'expected_arrival'
-                    );
-                    setSortAsc((a) => !a);
-                  }}
-                  className="px-3 py-1.5 rounded-lg border border-[#E3E9F3] bg-[#F4F7FB] text-[12px] font-medium text-[#243350] inline-flex items-center gap-1.5"
-                >
-                  <ArrowUpDown className="w-3.5 h-3.5 text-[#072D59]" />
-                  <span>Sort: {sortField === 'expected_arrival' ? 'Arrival Date' : 'Shipment #'}</span>
-                </button>
+                {/* Single-Row Search, Mode, Status, and Sort Controls */}
+                <div className="flex flex-col lg:flex-row lg:items-center gap-2.5">
+                  <div className="relative flex-1 min-w-[200px]">
+                    <Search className="w-4 h-4 text-[#64748B] absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => {
+                        setSearchQuery(e.target.value);
+                        setCurrentPage(1);
+                      }}
+                      placeholder="Search by DND-2026-..., customer, vessel/flight/truck, cargo, or city..."
+                      className="w-full bg-[#F8FAFC] border border-[#DCE4F0] focus:bg-white focus:border-[#072D59] focus:outline-none rounded-lg pl-9 pr-3 py-2 text-[12.5px] text-[#0F172A]"
+                    />
+                  </div>
+
+                  <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 shrink-0">
+                    <select
+                      aria-label="Filter shipments by mode"
+                      value={modeFilter}
+                      onChange={(e) => {
+                        setModeFilter(e.target.value as 'ALL' | TransportMode);
+                        setCurrentPage(1);
+                      }}
+                      className="bg-[#F8FAFC] border border-[#DCE4F0] rounded-lg px-3 py-2 text-[12px] font-semibold text-[#072D59] cursor-pointer"
+                    >
+                      <option value="ALL">All Modes (Sea / Air / Road)</option>
+                      <option value={TransportMode.SEA}>Sea Freight (Vessel)</option>
+                      <option value={TransportMode.AIR}>Air Freight (Aircraft)</option>
+                      <option value={TransportMode.ROAD}>Road Freight (Truck)</option>
+                    </select>
+
+                    <select
+                      aria-label="Filter shipments by status"
+                      value={statusFilter}
+                      onChange={(e) => {
+                        setStatusFilter(e.target.value as 'ALL' | ShipmentStatus | 'DELAYED');
+                        setCurrentPage(1);
+                      }}
+                      className="bg-[#F8FAFC] border border-[#DCE4F0] rounded-lg px-3 py-2 text-[12px] font-semibold text-[#072D59] cursor-pointer"
+                    >
+                      <option value="ALL">Status: All</option>
+                      <option value="DELAYED">Status: Delayed Only</option>
+                      {Object.values(ShipmentStatus).map((st) => (
+                        <option key={st} value={st}>
+                          Status: {formatEnumLabel(st)}
+                        </option>
+                      ))}
+                    </select>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSortField((f) =>
+                          f === 'expected_arrival' ? 'shipment_number' : 'expected_arrival'
+                        );
+                        setSortAsc((a) => !a);
+                      }}
+                      className="px-3 py-2 rounded-lg border border-[#DCE4F0] bg-[#F8FAFC] hover:bg-[#EEF2F8] text-[12px] font-semibold text-[#072D59] inline-flex items-center gap-1.5 whitespace-nowrap cursor-pointer transition-colors"
+                    >
+                      <ArrowUpDown className="w-3.5 h-3.5 text-[#072D59]" />
+                      <span>
+                        Sort: {sortField === 'expected_arrival' ? 'Arrival Date' : 'Shipment #'}
+                      </span>
+                    </button>
+                  </div>
+                </div>
               </div>
 
-              {/* Shipments Table */}
-              <div className="bg-white border border-[#E3E9F3] rounded-xl overflow-hidden">
+              {/* Clean, Balanced Shipments Table (Zero Horizontal Clipping on Laptop & Desktop) */}
+              <div className="bg-white border border-[#DCE4F0] rounded-xl overflow-hidden shadow-2xs">
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse text-[12.5px]">
+                  <table className="w-full text-left border-collapse text-[12px]">
                     <thead>
-                      <tr className="bg-[#F4F7FB] border-b border-[#E3E9F3] text-[#6B7A93] text-[11.5px]">
-                        <th className="py-3 px-4 font-medium">Shipment #</th>
-                        <th className="py-3 px-4 font-medium">Origin → Destination</th>
-                        <th className="py-3 px-4 font-medium">Carrier / Vehicle</th>
-                        <th className="py-3 px-4 font-medium">Customer</th>
-                        <th className="py-3 px-4 font-medium">Status</th>
-                        <th className="py-3 px-4 font-medium">ETA & Schedule</th>
-                        <th className="py-3 px-4 font-medium text-right">Weight</th>
+                      <tr className="bg-[#F4F7FB] border-b border-[#DCE4F0] text-[#475569] text-[11px] uppercase tracking-wider">
+                        <th className="py-3 pl-4 pr-2.5 font-bold">Shipment & Customer</th>
+                        <th className="py-3 px-2.5 font-bold">Origin → Destination</th>
+                        <th className="py-3 px-2.5 font-bold">Carrier & Fleet</th>
+                        <th className="py-3 px-2.5 font-bold text-center">ETA & Schedule</th>
+                        <th className="py-3 px-2.5 font-bold text-center">Status</th>
+                        <th className="py-3 pl-2.5 pr-4 font-bold text-center w-[96px]">Action</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#E3E9F3]">
@@ -1765,57 +1861,98 @@ export const App: React.FC = () => {
                           <tr
                             key={sh.id}
                             onClick={() => setSelectedShipment(sh)}
-                            className="hover:bg-[#DBF2FC]/35 cursor-pointer transition-colors"
+                            className="hover:bg-[#DBF2FC]/30 cursor-pointer transition-colors"
                           >
-                            <td className="py-3 px-4 font-mono-tabular font-bold text-[#072D59] whitespace-nowrap">
-                              {sh.shipment_number}
-                              <span className="block text-[10.5px] font-sans font-normal text-[#6B7A93]">
+                            {/* 1. Shipment #, Customer & Cargo */}
+                            <td className="py-2.5 pl-4 pr-2.5 align-middle max-w-[165px]">
+                              <div className="font-mono-tabular font-bold text-[#072D59] text-[12.5px] whitespace-nowrap">
+                                {sh.shipment_number}
+                              </div>
+                              <div
+                                className="text-[11px] font-medium text-[#334155] truncate"
+                                title={`${sh.customer_name} · ${sh.cargo_type}`}
+                              >
+                                {sh.customer_name}
+                              </div>
+                              <div
+                                className="text-[10.5px] text-[#64748B] truncate"
+                                title={sh.cargo_type}
+                              >
                                 {sh.cargo_type}
-                              </span>
+                              </div>
                             </td>
-                            <td className="py-3 px-4 whitespace-nowrap">
-                              <div className="font-semibold text-[#243350]">
+
+                            {/* 2. Origin -> Destination + Weight */}
+                            <td className="py-2.5 px-2.5 align-middle max-w-[185px]">
+                              <div
+                                className="font-semibold text-[#0F172A] text-[12px] truncate"
+                                title={`${orig?.city} (${orig?.code}) → ${dest?.city} (${dest?.code})`}
+                              >
                                 {orig?.city} ({orig?.code}) → {dest?.city} ({dest?.code})
                               </div>
-                              <div className="text-[11px] text-[#6B7A93]">
-                                {orig ? formatEnumLabel(orig.type) : ''} to {dest ? formatEnumLabel(dest.type) : ''}
+                              <div className="text-[10.5px] text-[#64748B] font-mono-tabular truncate">
+                                {sh.route_code} · {sh.total_weight_kg.toLocaleString()} kg · {sh.total_volume_cbm} CBM
                               </div>
                             </td>
-                            <td className="py-3 px-4">
-                              <div className="flex items-center gap-2.5">
+
+                            {/* 3. Carrier & Vehicle (Truncated cleanly so it NEVER wraps into vertical lines) */}
+                            <td className="py-2.5 px-2.5 align-middle max-w-[185px]">
+                              <div className="flex items-center gap-2 min-w-0">
                                 <ModeIconChip mode={sh.mode} size="sm" />
-                                <div>
-                                  <div className="font-semibold text-[#072D59]">
+                                <div className="min-w-0">
+                                  <div
+                                    className="font-semibold text-[#072D59] text-[12px] truncate"
+                                    title={car?.name}
+                                  >
                                     {car?.name}
                                   </div>
-                                  <div className="text-[11px] text-[#6B7A93] tabular-nums">
+                                  <div
+                                    className="text-[10.5px] text-[#64748B] tabular-nums truncate"
+                                    title={sh.vehicle_ref}
+                                  >
                                     {sh.vehicle_ref}
                                   </div>
                                 </div>
                               </div>
                             </td>
-                            <td className="py-3 px-4 text-[#243350] whitespace-nowrap">
-                              {sh.customer_name}
-                            </td>
-                            <td className="py-3 px-4">
-                              <ShipmentStatusBadge
-                                status={sh.status}
-                                isDelayed={isDelayed}
-                              />
-                            </td>
-                            <td className="py-3 px-4 whitespace-nowrap">
-                              <div className="tabular-nums font-medium text-[12px] text-[#072D59]">
+
+                            {/* 4. ETA & Schedule (Centered) */}
+                            <td className="py-2.5 px-2.5 align-middle text-center whitespace-nowrap">
+                              <div className="tabular-nums font-semibold text-[11.5px] text-[#072D59]">
                                 {new Date(sh.estimated_arrival).toLocaleDateString('en-GB', {
                                   day: '2-digit',
                                   month: 'short',
                                   hour: '2-digit',
                                   minute: '2-digit',
-                                })}
+                                })}{' '}
+                                UTC
                               </div>
-                              <SeverityBadge severity={eta.severity} />
+                              <div className="mt-0.5 flex justify-center">
+                                <SeverityBadge severity={eta.severity} />
+                              </div>
                             </td>
-                            <td className="py-3 px-4 text-right tabular-nums font-semibold text-[#072D59] whitespace-nowrap">
-                              {sh.total_weight_kg.toLocaleString()} kg
+
+                            {/* 5. Status (Centered) */}
+                            <td className="py-2.5 px-2.5 align-middle text-center whitespace-nowrap">
+                              <ShipmentStatusBadge
+                                status={sh.status}
+                                isDelayed={isDelayed}
+                              />
+                            </td>
+
+                            {/* 6. Centered Action Button */}
+                            <td className="py-2.5 pl-2.5 pr-4 align-middle text-center whitespace-nowrap">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedShipment(sh);
+                                }}
+                                className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#F4F7FB] hover:bg-[#072D59] text-[#072D59] hover:text-white border border-[#DCE4F0] hover:border-[#072D59] text-[11px] font-semibold transition-colors cursor-pointer"
+                              >
+                                <span>Inspect</span>
+                                <span>→</span>
+                              </button>
                             </td>
                           </tr>
                         );
@@ -1825,29 +1962,47 @@ export const App: React.FC = () => {
                 </div>
 
                 {/* Pagination Bar */}
-                <div className="px-4 py-3 bg-[#F4F7FB] border-t border-[#E3E9F3] flex items-center justify-between text-[12px]">
-                  <span className="text-[#6B7A93]">
-                    Showing {(currentPage - 1) * PAGE_SIZE + 1}–
-                    {Math.min(currentPage * PAGE_SIZE, filteredShipments.length)} of{' '}
-                    <strong className="text-[#072D59]">{filteredShipments.length}</strong> shipments
+                <div className="px-4 py-3 bg-[#F8FAFC] border-t border-[#DCE4F0] flex flex-wrap items-center justify-between gap-2 text-[12px]">
+                  <span className="text-[#475569] tabular-nums">
+                    Showing{' '}
+                    <strong className="text-[#072D59]">
+                      {filteredShipments.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1}–
+                      {Math.min(currentPage * PAGE_SIZE, filteredShipments.length)}
+                    </strong>{' '}
+                    of <strong className="text-[#072D59]">{filteredShipments.length}</strong> shipments
+                    <span className="text-[#94A3B8] ml-1.5">
+                      (Halaman {currentPage} dari {totalPages})
+                    </span>
                   </span>
                   <div className="flex items-center gap-1.5">
                     <button
                       type="button"
                       disabled={currentPage <= 1}
                       onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                      className="px-3 py-1 rounded-md border border-[#E3E9F3] bg-white disabled:opacity-40 font-semibold text-[#072D59]"
+                      className="px-3 py-1 rounded-lg border border-[#CBD5E1] bg-white hover:bg-[#F1F5F9] disabled:opacity-40 font-semibold text-[#072D59] cursor-pointer"
                     >
                       Previous
                     </button>
-                    <span className="px-2 tabular-nums">
-                      Page {currentPage} of {totalPages}
-                    </span>
+                    {Array.from({ length: totalPages }, (_, idx) => idx + 1).map((pageNum) => (
+                      <button
+                        key={pageNum}
+                        type="button"
+                        onClick={() => setCurrentPage(pageNum)}
+                        className={`w-7 h-7 rounded-lg text-[12px] font-bold tabular-nums transition-colors cursor-pointer ${
+                          currentPage === pageNum
+                            ? 'bg-[#072D59] text-white'
+                            : 'bg-white border border-[#CBD5E1] text-[#072D59] hover:bg-[#F1F5F9]'
+                        }`}
+                        title={`Go to Page ${pageNum}`}
+                      >
+                        {pageNum}
+                      </button>
+                    ))}
                     <button
                       type="button"
                       disabled={currentPage >= totalPages}
                       onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                      className="px-3 py-1 rounded-md border border-[#E3E9F3] bg-white disabled:opacity-40 font-semibold text-[#072D59]"
+                      className="px-3 py-1 rounded-lg border border-[#CBD5E1] bg-white hover:bg-[#F1F5F9] disabled:opacity-40 font-semibold text-[#072D59] cursor-pointer"
                     >
                       Next
                     </button>
@@ -1858,7 +2013,7 @@ export const App: React.FC = () => {
           )}
 
           {/* ===================================================================
-              SECTION 4: ACTIVE ROUTES (Leaflet.js + OpenStreetMap + Layer Toggle)
+              SECTION 4: ACTIVE ROUTES (3D Globe OpenStreetMap + Layer Toggle)
           =================================================================== */}
           {activeSection === 'active_routes' && (
             <div className="space-y-4">
@@ -1902,27 +2057,34 @@ export const App: React.FC = () => {
               />
 
               {/* Readable Active Shipments Quick-Inspect Table Below Map */}
-              <div className="bg-white border border-[#DCE4F0] rounded-xl overflow-hidden">
-                <div className="px-5 py-3.5 bg-[#F8FAFC] border-b border-[#E3E9F3] flex items-center justify-between">
+              <div className="bg-white border border-[#DCE4F0] rounded-xl overflow-hidden shadow-2xs">
+                <div className="px-5 py-3.5 bg-[#F8FAFC] border-b border-[#E3E9F3] flex flex-wrap items-center justify-between gap-2">
                   <div>
                     <h2 className="text-[14.5px] font-bold text-[#072D59]">
                       Active Corridor Shipments Directory
                     </h2>
                     <p className="text-[12px] text-[#475569]">
-                      Click any shipment row below to inspect its chronological checkpoints, destination weather, and route polyline
+                      Click any shipment row or the Inspect button to view its chronological checkpoints, destination weather, and route trajectory
                     </p>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveSection('shipments')}
+                    className="px-3 py-1.5 rounded-lg border border-[#CBD5E1] bg-white hover:bg-[#F1F5F9] text-[12px] font-semibold text-[#072D59] cursor-pointer transition-colors"
+                  >
+                    View All {roleScopedShipments.length} Shipments →
+                  </button>
                 </div>
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse text-[13px]">
+                  <table className="w-full text-left border-collapse text-[12px]">
                     <thead>
-                      <tr className="border-b border-[#E3E9F3] text-[#475569] text-[11.5px] bg-[#F4F7FB]/70">
-                        <th className="py-2.5 px-4 font-semibold">Shipment #</th>
-                        <th className="py-2.5 px-4 font-semibold">Mode & Carrier</th>
-                        <th className="py-2.5 px-4 font-semibold">Origin → Destination</th>
-                        <th className="py-2.5 px-4 font-semibold">Status</th>
-                        <th className="py-2.5 px-4 font-semibold">Schedule Variance</th>
-                        <th className="py-2.5 px-4 font-semibold text-right">Action</th>
+                      <tr className="border-b border-[#DCE4F0] text-[#475569] text-[11px] uppercase tracking-wider bg-[#F4F7FB]">
+                        <th className="py-3 pl-4 pr-2.5 font-bold">Shipment #</th>
+                        <th className="py-3 px-2.5 font-bold">Mode & Carrier</th>
+                        <th className="py-3 px-2.5 font-bold">Origin → Destination</th>
+                        <th className="py-3 px-2.5 font-bold text-center">Status</th>
+                        <th className="py-3 px-2.5 font-bold text-center">Schedule Variance</th>
+                        <th className="py-3 pl-2.5 pr-4 font-bold text-center w-[124px]">Action</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#E3E9F3]">
@@ -1941,34 +2103,46 @@ export const App: React.FC = () => {
                             onClick={() => setSelectedShipment(sh)}
                             className="hover:bg-[#DBF2FC]/35 cursor-pointer transition-colors"
                           >
-                            <td className="py-3 px-4 font-mono-tabular font-bold text-[#072D59] whitespace-nowrap">
+                            <td className="py-2.5 pl-4 pr-2.5 align-middle font-mono-tabular font-bold text-[#072D59] whitespace-nowrap">
                               {sh.shipment_number}
                             </td>
-                            <td className="py-3 px-4">
-                              <div className="flex items-center gap-2">
+                            <td className="py-2.5 px-2.5 align-middle max-w-[180px]">
+                              <div className="flex items-center gap-2 min-w-0">
                                 <ModeIconChip mode={sh.mode} size="sm" />
-                                <div>
-                                  <div className="font-semibold text-[#072D59] whitespace-nowrap">{car?.name}</div>
-                                  <div className="text-[11px] tabular-nums text-[#475569] whitespace-nowrap">
+                                <div className="min-w-0">
+                                  <div className="font-semibold text-[#072D59] truncate" title={car?.name}>
+                                    {car?.name}
+                                  </div>
+                                  <div className="text-[10.5px] tabular-nums text-[#475569] truncate" title={sh.vehicle_ref}>
                                     {sh.vehicle_ref}
                                   </div>
                                 </div>
                               </div>
                             </td>
-                            <td className="py-3 px-4 font-medium text-[#1E293B] whitespace-nowrap">
+                            <td className="py-2.5 px-2.5 align-middle font-semibold text-[#1E293B] max-w-[180px] truncate" title={`${orig?.city} (${orig?.code}) → ${dest?.city} (${dest?.code})`}>
                               {orig?.city} ({orig?.code}) → {dest?.city} ({dest?.code})
                             </td>
-                            <td className="py-3 px-4 whitespace-nowrap">
+                            <td className="py-2.5 px-2.5 align-middle text-center whitespace-nowrap">
                               <ShipmentStatusBadge
                                 status={sh.status}
                                 isDelayed={eta.is_delayed && sh.status !== ShipmentStatus.DELIVERED}
                               />
                             </td>
-                            <td className="py-3 px-4 whitespace-nowrap">
+                            <td className="py-2.5 px-2.5 align-middle text-center whitespace-nowrap">
                               <SeverityBadge severity={eta.severity} />
                             </td>
-                            <td className="py-3 px-4 text-right font-semibold text-[#072D59] whitespace-nowrap">
-                              Open Details →
+                            <td className="py-2.5 pl-2.5 pr-4 align-middle text-center whitespace-nowrap">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedShipment(sh);
+                                }}
+                                className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#F4F7FB] hover:bg-[#072D59] text-[#072D59] hover:text-white border border-[#DCE4F0] hover:border-[#072D59] text-[11px] font-semibold transition-colors cursor-pointer"
+                              >
+                                <span>Open Details</span>
+                                <span>→</span>
+                              </button>
                             </td>
                           </tr>
                         );
@@ -1990,57 +2164,82 @@ export const App: React.FC = () => {
                   <h1 className="text-[21px] font-bold text-[#072D59]">
                     Popular Corridors & Route Volume Analytics
                   </h1>
-                  <p className="text-[13px] text-[#6B7A93]">
-                    Aggregated route performance ranked by shipment volume, haversine distance, and on-time rate
+                  <p className="text-[13px] text-[#64748B]">
+                    Aggregated corridor performance ranked by active shipment volume (jumlah kargo aktif per rute), haversine distance, and on-time rate
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={handleExportCsv}
-                  className="px-3.5 py-1.5 rounded-lg bg-[#072D59] text-white text-[12px] font-semibold inline-flex items-center gap-1.5"
+                  className="px-3.5 py-2 rounded-lg bg-[#072D59] hover:bg-[#051F3E] text-white text-[12px] font-semibold inline-flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
                 >
                   <Download className="w-3.5 h-3.5" />
                   <span>Export Routes CSV</span>
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {popularRoutes.map((r) => (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {popularRoutes.map((r, idx) => (
                   <div
-                    key={`${r.route_code}-${r.mode}`}
+                    key={`${r.route_code}-${r.origin.id}-${r.destination.id}-${r.mode}`}
                     onClick={() => {
                       const sh = shipments.find((s) => s.id === r.sample_shipment_id);
                       if (sh) setSelectedShipment(sh);
                     }}
-                    className="bg-white border border-[#E3E9F3] hover:border-[#072D59] rounded-xl p-4 cursor-pointer transition-all space-y-3"
+                    className="bg-white border border-[#DCE4F0] hover:border-[#072D59] rounded-xl p-4 cursor-pointer transition-all flex flex-col justify-between gap-3.5 overflow-hidden shadow-2xs"
                   >
-                    <div className="flex items-center justify-between">
-                      <ModeIconChip mode={r.mode} size="md" showLabel />
-                      <span className="tabular-nums text-[12px] font-semibold text-[#475569]">
-                        {r.shipment_count} Shipments
-                      </span>
+                    {/* Top Row: Vehicle Photo + Mode Name on Left, Contained Volume Box on Right */}
+                    <div className="flex items-center justify-between gap-2 min-w-0">
+                      <div className="min-w-0 flex items-center gap-2 overflow-hidden">
+                        <ModeIconChip mode={r.mode} size="sm" showLabel />
+                      </div>
+                      <div className="shrink-0 bg-[#F4F7FB] border border-[#DCE4F0] rounded-lg px-2.5 py-1 text-right">
+                        <span className="block tabular-nums text-[12px] font-extrabold text-[#072D59] leading-tight whitespace-nowrap">
+                          {r.shipment_count} {r.shipment_count === 1 ? 'Shipment' : 'Shipments'}
+                        </span>
+                        <span className="block text-[9.5px] font-medium text-[#64748B] leading-tight whitespace-nowrap">
+                          Rank #{idx + 1} Volume
+                        </span>
+                      </div>
                     </div>
-                    <div>
-                      <div className="text-[14px] font-bold text-[#072D59]">
+
+                    {/* Middle Row: Origin -> Destination & Carrier */}
+                    <div className="min-w-0 space-y-1">
+                      <div className="text-[14.5px] font-bold text-[#072D59] leading-snug truncate">
                         {r.origin.city} ({r.origin.code}) → {r.destination.city} ({r.destination.code})
                       </div>
-                      <div className="text-[11.5px] text-[#6B7A93]">
+                      <div
+                        className="text-[11.5px] text-[#475569] truncate"
+                        title={`${r.carrier.name} · ${r.vehicle_ref}`}
+                      >
                         {r.carrier.name} · {r.vehicle_ref}
                       </div>
                     </div>
-                    <div className="grid grid-cols-3 gap-2 pt-2 border-t border-[#E3E9F3] text-[11.5px] tabular-nums">
+
+                    {/* Metrics Grid */}
+                    <div className="grid grid-cols-3 gap-2 pt-2.5 border-t border-[#E3E9F3] text-[12px] tabular-nums">
                       <div>
-                        <span className="text-[#6B7A93] block text-[10px]">Distance</span>
+                        <span className="text-[#64748B] block text-[10px]">Distance</span>
                         <strong className="text-[#072D59]">{r.distance_mi.toLocaleString()} mi</strong>
                       </div>
                       <div>
-                        <span className="text-[#6B7A93] block text-[10px]">Avg Transit</span>
-                        <strong className="text-[#072D59]">{r.avg_transit_days}d</strong>
+                        <span className="text-[#64748B] block text-[10px]">Avg. Transit</span>
+                        <strong className="text-[#072D59]">{r.avg_transit_days} days</strong>
                       </div>
                       <div>
-                        <span className="text-[#6B7A93] block text-[10px]">On-Time</span>
+                        <span className="text-[#64748B] block text-[10px]">On-Time Rate</span>
                         <strong className="text-[#072D59]">{r.on_time_rate}%</strong>
                       </div>
+                    </div>
+
+                    {/* Card Action Footer */}
+                    <div className="pt-2 border-t border-[#F1F5F9] flex items-center justify-between gap-2 text-[11.5px]">
+                      <span className="font-mono-tabular font-semibold text-[#64748B] truncate">
+                        Corridor {r.route_code}
+                      </span>
+                      <span className="shrink-0 inline-flex items-center gap-1 font-bold text-[#072D59] group-hover:underline">
+                        Inspect Route →
+                      </span>
                     </div>
                   </div>
                 ))}
@@ -2313,51 +2512,239 @@ export const App: React.FC = () => {
           {/* ===================================================================
               SECTION 9: AUDIT LOG (Admin Only)
           =================================================================== */}
+          {/* ===================================================================
+              SECTION 9: AUDIT LOG & OPERATIONAL HISTORY (Admin Only)
+          =================================================================== */}
           {activeSection === 'history' && isAdmin && (
             <div className="space-y-4">
-              <div>
-                <h1 className="text-[21px] font-bold text-[#072D59]">
-                  System Audit Trail
-                </h1>
-                <p className="text-[13px] text-[#6B7A93]">
-                  Immutable record of user actions, timestamps, and state changes across shipments, exceptions, and settings
-                </p>
+              {/* Header */}
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h1 className="text-[21px] font-bold text-[#072D59] tracking-tight">
+                    Operational History & System Audit Trail
+                  </h1>
+                  <p className="text-[13px] text-[#64748B]">
+                    Immutable chronological ledger of operator actions, shipment status transitions, customs holds, and system configuration updates
+                  </p>
+                </div>
               </div>
 
-              <div className="bg-white border border-[#E3E9F3] rounded-xl overflow-hidden">
-                <table className="w-full text-left border-collapse text-[12.5px]">
-                  <thead>
-                    <tr className="bg-[#F4F7FB] border-b border-[#E3E9F3] text-[#6B7A93] text-[11.5px]">
-                      <th className="py-3 px-4 font-medium">Timestamp (UTC)</th>
-                      <th className="py-3 px-4 font-medium">Actor</th>
-                      <th className="py-3 px-4 font-medium">Action</th>
-                      <th className="py-3 px-4 font-medium">Entity</th>
-                      <th className="py-3 px-4 font-medium">Summary</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#E3E9F3]">
-                    {auditLogs.map((log) => (
-                      <tr key={log.id}>
-                        <td className="py-3 px-4 tabular-nums text-[11.5px] text-[#6B7A93] whitespace-nowrap">
-                          {new Date(log.created_at).toLocaleString('en-GB')}
-                        </td>
-                        <td className="py-3 px-4 whitespace-nowrap">
-                          <div className="font-semibold text-[#072D59]">{log.actor_name}</div>
-                          <div className="text-[11px] text-[#6B7A93]">{formatEnumLabel(log.actor_role)}</div>
-                        </td>
-                        <td className="py-3 px-4 font-semibold text-[12px] text-[#072D59]">
-                          {formatEnumLabel(log.action)}
-                        </td>
-                        <td className="py-3 px-4 tabular-nums text-[#243350]">
-                          {log.entity_type} · {log.entity_id}
-                        </td>
-                        <td className="py-3 px-4 text-[#243350]">
-                          <div>{log.summary}</div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              {/* 3-Column Audit Summary Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                <div className="bg-white border border-[#DCE4F0] rounded-xl p-4 flex items-center justify-between">
+                  <div>
+                    <div className="text-[11.5px] font-semibold text-[#64748B]">
+                      Total Recorded Audit Events
+                    </div>
+                    <div className="text-[22px] font-extrabold text-[#072D59] tabular-nums mt-0.5">
+                      {auditLogs.length}
+                    </div>
+                    <div className="text-[11px] text-[#475569] mt-0.5">
+                      Verified SHA-256 append-only log
+                    </div>
+                  </div>
+                  <div className="w-10 h-10 rounded-xl bg-[#F0F7FF] border border-[#B8E2F8] text-[#072D59] flex items-center justify-center">
+                    <History className="w-5 h-5" />
+                  </div>
+                </div>
+
+                <div className="bg-white border border-[#DCE4F0] rounded-xl p-4 flex items-center justify-between">
+                  <div>
+                    <div className="text-[11.5px] font-semibold text-[#64748B]">
+                      Shipment & Checkpoint Actions
+                    </div>
+                    <div className="text-[22px] font-extrabold text-[#072D59] tabular-nums mt-0.5">
+                      {
+                        auditLogs.filter(
+                          (l) =>
+                            l.entity_type === 'Shipment' || l.entity_type === 'TrackingEvent'
+                        ).length
+                      }
+                    </div>
+                    <div className="text-[11px] text-[#475569] mt-0.5">
+                      Lifecycle transitions & departures
+                    </div>
+                  </div>
+                  <div className="w-10 h-10 rounded-xl bg-[#F3FAF9] border border-[#BCE3E8] text-[#0D9488] flex items-center justify-center">
+                    <Package className="w-5 h-5" />
+                  </div>
+                </div>
+
+                <div className="bg-white border border-[#DCE4F0] rounded-xl p-4 flex items-center justify-between">
+                  <div>
+                    <div className="text-[11.5px] font-semibold text-[#64748B]">
+                      Exception & Hold Incidents
+                    </div>
+                    <div className="text-[22px] font-extrabold text-[#9F1D35] tabular-nums mt-0.5">
+                      {auditLogs.filter((l) => l.entity_type === 'ShipmentException').length}
+                    </div>
+                    <div className="text-[11px] text-[#475569] mt-0.5">
+                      Customs holds, weather delays & resolutions
+                    </div>
+                  </div>
+                  <div className="w-10 h-10 rounded-xl bg-[#FFF0F3] border border-[#FD6E88]/60 text-[#9F1D35] flex items-center justify-center">
+                    <AlertTriangle className="w-5 h-5" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Filter & Search Bar for Audit History */}
+              <div className="bg-white border border-[#DCE4F0] rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {(
+                    [
+                      { id: 'ALL', label: 'All Activity' },
+                      { id: 'SHIPMENT', label: 'Shipment Updates' },
+                      { id: 'EXCEPTION', label: 'Exceptions & Holds' },
+                      { id: 'SETTINGS', label: 'System Config' },
+                    ] as const
+                  ).map((cat) => (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => setAuditCategoryFilter(cat.id)}
+                      className={`px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-colors cursor-pointer whitespace-nowrap ${
+                        auditCategoryFilter === cat.id
+                          ? 'bg-[#072D59] text-white'
+                          : 'bg-[#F4F7FB] text-[#475569] hover:text-[#072D59]'
+                      }`}
+                    >
+                      {cat.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="relative min-w-[240px] sm:w-[300px]">
+                  <Search className="w-4 h-4 text-[#64748B] absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={auditSearchQuery}
+                    onChange={(e) => setAuditSearchQuery(e.target.value)}
+                    placeholder="Search actor, DND-2026-..., or action..."
+                    className="w-full bg-[#F8FAFC] border border-[#DCE4F0] focus:bg-white focus:border-[#072D59] focus:outline-none rounded-lg pl-9 pr-3 py-1.5 text-[12.5px]"
+                  />
+                </div>
+              </div>
+
+              {/* Clean, Well-Proportioned Audit Trail Cards / Rows */}
+              <div className="bg-white border border-[#DCE4F0] rounded-xl divide-y divide-[#E3E9F3] overflow-hidden shadow-2xs">
+                {auditLogs
+                  .filter((log) => {
+                    if (auditCategoryFilter === 'SHIPMENT') {
+                      if (log.entity_type !== 'Shipment' && log.entity_type !== 'TrackingEvent') {
+                        return false;
+                      }
+                    } else if (auditCategoryFilter === 'EXCEPTION') {
+                      if (log.entity_type !== 'ShipmentException') return false;
+                    } else if (auditCategoryFilter === 'SETTINGS') {
+                      if (log.entity_type !== 'Settings') return false;
+                    }
+                    if (auditSearchQuery.trim()) {
+                      const q = auditSearchQuery.toLowerCase();
+                      return (
+                        log.actor_name.toLowerCase().includes(q) ||
+                        log.entity_id.toLowerCase().includes(q) ||
+                        log.action.toLowerCase().includes(q) ||
+                        log.summary.toLowerCase().includes(q)
+                      );
+                    }
+                    return true;
+                  })
+                  .map((log) => {
+                    const matchedShipment = shipments.find(
+                      (s) => s.shipment_number === log.entity_id
+                    );
+                    const isExceptionAction = log.entity_type === 'ShipmentException';
+                    const isResolvedAction = log.action.includes('RESOLVED');
+                    const isSettingsAction = log.entity_type === 'Settings';
+
+                    const actionBadgeClass = isResolvedAction
+                      ? 'bg-[#E5F3EC] text-[#2B6E51] border-[#B8E0CC]'
+                      : isExceptionAction
+                      ? 'bg-[#FFF0F3] text-[#9F1D35] border-[#FD6E88]/70'
+                      : isSettingsAction
+                      ? 'bg-[#F1F5F9] text-[#334155] border-[#CBD5E1]'
+                      : 'bg-[#DBF2FC] text-[#072D59] border-[#B8E2F8]';
+
+                    const initials = log.actor_name
+                      .split(' ')
+                      .map((part) => part[0])
+                      .join('')
+                      .slice(0, 2)
+                      .toUpperCase();
+
+                    return (
+                      <div
+                        key={log.id}
+                        className="p-4 hover:bg-[#F8FAFC] transition-colors flex flex-col lg:flex-row lg:items-center justify-between gap-4"
+                      >
+                        {/* Left + Center: Actor, Action Badge, Target Entity, and Full Summary */}
+                        <div className="flex items-start gap-3.5 min-w-0 flex-1">
+                          <div className="w-9 h-9 rounded-full bg-[#072D59] text-white font-bold text-[12px] flex items-center justify-center shrink-0 mt-0.5">
+                            {initials}
+                          </div>
+
+                          <div className="space-y-1 min-w-0 flex-1">
+                            {/* Top Metadata Line (Single-Line Badges, Zero Vertical Wrapping) */}
+                            <div className="flex flex-wrap items-center gap-2 text-[12px]">
+                              <span className="font-bold text-[#072D59] whitespace-nowrap">
+                                {log.actor_name}
+                              </span>
+                              <span className="text-[11px] font-semibold text-[#64748B] whitespace-nowrap">
+                                ({formatEnumLabel(log.actor_role)})
+                              </span>
+                              <span className="text-[#CBD5E1]" aria-hidden="true">·</span>
+                              <span
+                                className={`px-2 py-0.5 rounded-md text-[11px] font-semibold border whitespace-nowrap ${actionBadgeClass}`}
+                              >
+                                {formatEnumLabel(log.action)}
+                              </span>
+                              <span className="text-[#CBD5E1]" aria-hidden="true">·</span>
+                              <span className="font-mono-tabular text-[12px] font-bold text-[#072D59] whitespace-nowrap">
+                                {log.entity_type}: {log.entity_id}
+                              </span>
+                            </div>
+
+                            {/* Readable Full-Width Summary */}
+                            <p className="text-[13px] text-[#1E293B] leading-relaxed">
+                              {log.summary}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Right: Timestamp & Quick Inspect Button */}
+                        <div className="flex items-center justify-between lg:justify-end gap-3 shrink-0 pl-12 lg:pl-0">
+                          <div className="text-left lg:text-right tabular-nums">
+                            <div className="text-[12px] font-semibold text-[#334155] whitespace-nowrap">
+                              {new Date(log.created_at).toLocaleDateString('en-GB', {
+                                day: '2-digit',
+                                month: 'short',
+                                year: 'numeric',
+                              })}
+                            </div>
+                            <div className="text-[11px] text-[#64748B] whitespace-nowrap">
+                              {new Date(log.created_at).toLocaleTimeString('en-GB', {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                second: '2-digit',
+                              })}{' '}
+                              UTC
+                            </div>
+                          </div>
+
+                          {matchedShipment && (
+                            <button
+                              type="button"
+                              onClick={() => setSelectedShipment(matchedShipment)}
+                              className="px-3 py-1.5 rounded-lg bg-[#F4F7FB] hover:bg-[#072D59] text-[#072D59] hover:text-white border border-[#DCE4F0] hover:border-[#072D59] text-[11.5px] font-semibold transition-colors whitespace-nowrap cursor-pointer"
+                            >
+                              Inspect Shipment →
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
               </div>
             </div>
           )}
@@ -2484,21 +2871,37 @@ export const App: React.FC = () => {
           =================================================================== */}
           {activeSection === 'locations' && isAdmin && (
             <div className="space-y-5">
-              <div>
-                <h1 className="text-[21px] font-bold text-[#072D59]">
-                  Locations Registry & Nominatim Geocoding
-                </h1>
-                <p className="text-[13px] text-[#6B7A93]">
-                  Register Seaports, Airports, and Road Depots with OpenStreetMap Nominatim coordinate lookup
-                </p>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h1 className="text-[21px] font-bold text-[#072D59]">
+                    Locations & Hubs Registry
+                  </h1>
+                  <p className="text-[13px] text-[#6B7A93]">
+                    Register Seaports, Airports, and Road Depots with automatic Latitude & Longitude coordinate lookup and hub management
+                  </p>
+                </div>
+                {locations.length < SEED_LOCATIONS.length && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLocations(SEED_LOCATIONS);
+                      showToast('Restored all default global logistics hubs.');
+                    }}
+                    className="px-3 py-1.5 rounded-lg border border-[#CBD5E1] bg-white text-[12px] font-semibold text-[#072D59] hover:bg-[#F8FAFC] cursor-pointer"
+                  >
+                    Restore Default Locations ({SEED_LOCATIONS.length})
+                  </button>
+                )}
               </div>
 
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
                   if (!newLocCode || !newLocName) return;
+                  const nextLocId =
+                    locations.length > 0 ? Math.max(...locations.map((l) => l.id)) + 1 : 1;
                   const created: Location = {
-                    id: locations.length + 1,
+                    id: nextLocId,
                     code: newLocCode.toUpperCase(),
                     name: newLocName,
                     city: newLocCity || newLocName,
@@ -2507,20 +2910,85 @@ export const App: React.FC = () => {
                     latitude: Number(newLocLat),
                     longitude: Number(newLocLng),
                   };
-                  setLocations((prev) => [...prev, created]);
+                  setLocations((prev) => [created, ...prev]);
                   setNewLocCode('');
                   setNewLocName('');
                   setNewLocCity('');
                   showToast(`Added ${formatEnumLabel(created.type)} location ${created.name} (${created.code}).`);
                 }}
-                className="bg-white border border-[#E3E9F3] rounded-xl p-4 space-y-3 text-[12.5px]"
+                className="bg-white border border-[#E3E9F3] rounded-xl p-5 space-y-4 text-[12.5px]"
               >
-                <div className="font-bold text-[#072D59] text-[13.5px]">
-                  Add Logistics Hub Location
+                <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-[#F1F5F9]">
+                  <div>
+                    <div className="font-bold text-[#072D59] text-[14px]">
+                      Add New Logistics Hub Location
+                    </div>
+                    <div className="text-[11.5px] text-[#64748B]">
+                      Enter a city or facility name and click <strong>Auto Latitude & Longitude</strong> to fill WGS84 coordinates automatically
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    data-testid="auto-lat-lng-btn"
+                    onClick={async () => {
+                      const query = newLocCity || newLocName || newLocCode || 'Semarang';
+                      setGeocodeStatus(`Looking up coordinates for "${query}"...`);
+                      const res = await ExternalApiService.geocodePlaceName(query);
+                      setNewLocLat(res.latitude);
+                      setNewLocLng(res.longitude);
+                      if (!newLocCity && res.city) setNewLocCity(res.city);
+                      if (!newLocCountry && res.country) setNewLocCountry(res.country);
+                      setGeocodeStatus(
+                        `Auto Lat/Lng filled (${res.latitude.toFixed(4)}, ${res.longitude.toFixed(4)}) via ${res.source}: ${res.display_name}`
+                      );
+                      showToast(
+                        `Auto Latitude & Longitude filled: ${res.latitude.toFixed(4)}, ${res.longitude.toFixed(4)}`
+                      );
+                    }}
+                    className="px-3.5 py-2 rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-[12px] inline-flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
+                  >
+                    <Compass className="w-3.5 h-3.5" />
+                    <span>Auto Latitude & Longitude</span>
+                  </button>
                 </div>
+
+                {/* Quick Hub Preset Chips for 1-Click Auto-Fill */}
+                <div className="flex flex-wrap items-center gap-1.5 text-[11.5px]">
+                  <span className="text-[#64748B] font-semibold mr-1">Quick Auto-Fill Presets:</span>
+                  {[
+                    { code: 'IDSRG', name: 'Tanjung Emas Seaport', city: 'Semarang', country: 'Indonesia', type: LocationType.SEAPORT, lat: -6.9482, lng: 110.4239 },
+                    { code: 'IDMAK', name: 'Soekarno-Hatta Seaport', city: 'Makassar', country: 'Indonesia', type: LocationType.SEAPORT, lat: -5.1189, lng: 119.4064 },
+                    { code: 'IDBLW', name: 'Port of Belawan', city: 'Medan', country: 'Indonesia', type: LocationType.SEAPORT, lat: 3.7845, lng: 98.6894 },
+                    { code: 'DPS', name: 'I Gusti Ngurah Rai Cargo Terminal', city: 'Denpasar', country: 'Indonesia', type: LocationType.AIRPORT, lat: -8.7482, lng: 115.2126 },
+                    { code: 'BEANR', name: 'Port of Antwerp-Bruges', city: 'Antwerp', country: 'Belgium', type: LocationType.SEAPORT, lat: 51.2632, lng: 4.3679 },
+                    { code: 'FRA', name: 'Frankfurt CargoCity Airport', city: 'Frankfurt', country: 'Germany', type: LocationType.AIRPORT, lat: 50.0379, lng: 8.5622 },
+                  ].map((preset) => (
+                    <button
+                      key={preset.code}
+                      type="button"
+                      onClick={() => {
+                        setNewLocCode(preset.code);
+                        setNewLocName(preset.name);
+                        setNewLocCity(preset.city);
+                        setNewLocCountry(preset.country);
+                        setNewLocType(preset.type);
+                        setNewLocLat(preset.lat);
+                        setNewLocLng(preset.lng);
+                        setGeocodeStatus(
+                          `Preset loaded: ${preset.name} (${preset.city}) → Lat ${preset.lat}, Lng ${preset.lng}`
+                        );
+                      }}
+                      className="px-2.5 py-1 rounded-md bg-[#F1F5F9] hover:bg-[#DBF2FC] text-[#072D59] font-medium transition-colors cursor-pointer"
+                    >
+                      {preset.city} ({preset.code})
+                    </button>
+                  ))}
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                   <div>
-                    <label className="block text-[11px] font-semibold mb-1">
+                    <label className="block text-[11px] font-semibold mb-1 text-[#334155]">
                       Location Code (UN/LOCODE or IATA)
                     </label>
                     <input
@@ -2529,11 +2997,11 @@ export const App: React.FC = () => {
                       placeholder="e.g. IDSRG"
                       value={newLocCode}
                       onChange={(e) => setNewLocCode(e.target.value)}
-                      className="w-full border border-[#E3E9F3] rounded-lg px-3 py-1.5 font-mono-tabular"
+                      className="w-full border border-[#CBD5E1] rounded-lg px-3 py-1.5 font-mono-tabular"
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold mb-1">
+                    <label className="block text-[11px] font-semibold mb-1 text-[#334155]">
                       Facility Name
                     </label>
                     <input
@@ -2542,12 +3010,12 @@ export const App: React.FC = () => {
                       placeholder="e.g. Tanjung Emas Port"
                       value={newLocName}
                       onChange={(e) => setNewLocName(e.target.value)}
-                      className="w-full border border-[#E3E9F3] rounded-lg px-3 py-1.5"
+                      className="w-full border border-[#CBD5E1] rounded-lg px-3 py-1.5"
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold mb-1">
-                      City (Geocode WGS84)
+                    <label className="block text-[11px] font-semibold mb-1 text-[#334155]">
+                      City (Geocode Target)
                     </label>
                     <div className="flex gap-1.5">
                       <input
@@ -2556,33 +3024,33 @@ export const App: React.FC = () => {
                         placeholder="e.g. Semarang"
                         value={newLocCity}
                         onChange={(e) => setNewLocCity(e.target.value)}
-                        className="w-full border border-[#E3E9F3] rounded-lg px-3 py-1.5"
+                        className="w-full border border-[#CBD5E1] rounded-lg px-3 py-1.5"
                       />
                       <button
                         type="button"
                         onClick={async () => {
-                          setGeocodeStatus('Querying Nominatim...');
-                          const res = await ExternalApiService.geocodePlaceName(
-                            newLocCity || newLocName
-                          );
+                          const query = newLocCity || newLocName || newLocCode || 'Semarang';
+                          setGeocodeStatus(`Querying coordinates for "${query}"...`);
+                          const res = await ExternalApiService.geocodePlaceName(query);
                           setNewLocLat(res.latitude);
                           setNewLocLng(res.longitude);
+                          if (!newLocCountry && res.country) setNewLocCountry(res.country);
                           setGeocodeStatus(`${res.source}: ${res.display_name}`);
                         }}
-                        className="px-2.5 py-1.5 rounded-lg bg-[#DBF2FC] text-[#072D59] font-semibold text-xs shrink-0"
+                        className="px-2.5 py-1.5 rounded-lg bg-[#DBF2FC] hover:bg-[#B8E2F8] text-[#072D59] font-bold text-xs shrink-0 cursor-pointer"
                       >
-                        Geocode
+                        Auto Lat/Lng
                       </button>
                     </div>
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold mb-1">
+                    <label className="block text-[11px] font-semibold mb-1 text-[#334155]">
                       Facility Type
                     </label>
                     <select
                       value={newLocType}
                       onChange={(e) => setNewLocType(e.target.value as LocationType)}
-                      className="w-full border border-[#E3E9F3] rounded-lg px-3 py-1.5"
+                      className="w-full border border-[#CBD5E1] rounded-lg px-3 py-1.5 bg-white"
                     >
                       <option value={LocationType.SEAPORT}>Seaport</option>
                       <option value={LocationType.AIRPORT}>Airport</option>
@@ -2590,7 +3058,7 @@ export const App: React.FC = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold mb-1">
+                    <label className="block text-[11px] font-semibold mb-1 text-[#334155]">
                       Country
                     </label>
                     <input
@@ -2598,11 +3066,11 @@ export const App: React.FC = () => {
                       placeholder="e.g. Indonesia"
                       value={newLocCountry}
                       onChange={(e) => setNewLocCountry(e.target.value)}
-                      className="w-full border border-[#E3E9F3] rounded-lg px-3 py-1.5"
+                      className="w-full border border-[#CBD5E1] rounded-lg px-3 py-1.5"
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold mb-1">
+                    <label className="block text-[11px] font-semibold mb-1 text-[#334155]">
                       Latitude (WGS84)
                     </label>
                     <input
@@ -2610,11 +3078,11 @@ export const App: React.FC = () => {
                       step="0.0001"
                       value={newLocLat}
                       onChange={(e) => setNewLocLat(Number(e.target.value))}
-                      className="w-full border border-[#E3E9F3] rounded-lg px-3 py-1.5 tabular-nums"
+                      className="w-full border border-[#CBD5E1] rounded-lg px-3 py-1.5 tabular-nums font-semibold text-[#072D59]"
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold mb-1">
+                    <label className="block text-[11px] font-semibold mb-1 text-[#334155]">
                       Longitude (WGS84)
                     </label>
                     <input
@@ -2622,20 +3090,20 @@ export const App: React.FC = () => {
                       step="0.0001"
                       value={newLocLng}
                       onChange={(e) => setNewLocLng(Number(e.target.value))}
-                      className="w-full border border-[#E3E9F3] rounded-lg px-3 py-1.5 tabular-nums"
+                      className="w-full border border-[#CBD5E1] rounded-lg px-3 py-1.5 tabular-nums font-semibold text-[#072D59]"
                     />
                   </div>
                   <div className="flex items-end">
                     <button
                       type="submit"
-                      className="w-full py-1.5 rounded-lg bg-[#072D59] text-white font-semibold"
+                      className="w-full py-1.5 rounded-lg bg-[#072D59] hover:bg-[#051F3E] text-white font-semibold cursor-pointer"
                     >
                       + Save Location
                     </button>
                   </div>
                 </div>
                 {geocodeStatus && (
-                  <div className="text-[11.5px] text-[#072D59] tabular-nums">
+                  <div className="px-3 py-2 rounded-lg bg-[#F0F7FF] border border-[#BAE6FD] text-[12px] text-[#072D59] font-medium tabular-nums">
                     {geocodeStatus}
                   </div>
                 )}
@@ -2645,22 +3113,80 @@ export const App: React.FC = () => {
                 {locations.map((loc) => (
                   <div
                     key={loc.id}
-                    className="bg-white border border-[#E3E9F3] rounded-xl p-4 space-y-2"
+                    className="bg-white border border-[#E3E9F3] hover:border-[#CBD5E1] rounded-xl p-4 flex flex-col justify-between gap-3 transition-all"
                   >
-                    <div className="flex items-center justify-between">
-                      <span className="font-mono-tabular font-bold text-[#072D59]">
-                        {loc.code}
-                      </span>
-                      <LocationTypeBadge type={loc.type} />
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-mono-tabular font-bold text-[#072D59] text-[13.5px]">
+                          {loc.code}
+                        </span>
+                        <LocationTypeBadge type={loc.type} />
+                      </div>
+                      <div className="font-bold text-[#1E293B] text-[13.5px]">
+                        {loc.name}
+                      </div>
+                      <div className="text-[12px] text-[#64748B]">
+                        {loc.city}, {loc.country}
+                      </div>
+                      <div className="text-[11.5px] tabular-nums font-medium text-[#072D59] bg-[#F8FAFC] px-2.5 py-1 rounded-md border border-[#E2E8F0] inline-block">
+                        Lat {loc.latitude.toFixed(4)}, Lng {loc.longitude.toFixed(4)}
+                      </div>
                     </div>
-                    <div className="font-semibold text-[#243350] text-[13.5px]">
-                      {loc.name}
-                    </div>
-                    <div className="text-[12px] text-[#6B7A93]">
-                      {loc.city}, {loc.country}
-                    </div>
-                    <div className="text-[11px] tabular-nums text-[#6B7A93]">
-                      Lat {loc.latitude.toFixed(4)}, Lng {loc.longitude.toFixed(4)}
+
+                    <div className="pt-2.5 border-t border-[#F1F5F9] flex items-center justify-between gap-2">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const res = await ExternalApiService.geocodePlaceName(
+                            `${loc.city} ${loc.country}`
+                          );
+                          setLocations((prev) =>
+                            prev.map((item) =>
+                              item.id === loc.id
+                                ? { ...item, latitude: res.latitude, longitude: res.longitude }
+                                : item
+                            )
+                          );
+                          showToast(
+                            `Updated ${loc.code} coordinates to Lat ${res.latitude.toFixed(4)}, Lng ${res.longitude.toFixed(4)}.`
+                          );
+                        }}
+                        className="px-2.5 py-1 rounded-md bg-[#F1F5F9] hover:bg-[#DBF2FC] text-[#072D59] text-[11px] font-semibold inline-flex items-center gap-1 transition-colors cursor-pointer"
+                        title="Auto-refresh Latitude & Longitude for this location"
+                      >
+                        <Compass className="w-3 h-3" />
+                        <span>Auto Lat/Lng</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        data-testid={`delete-location-${loc.code.toLowerCase()}`}
+                        onClick={() => {
+                          setLocations((prev) => prev.filter((item) => item.id !== loc.id));
+                          setAuditLogs((prev) => [
+                            {
+                              id: Date.now(),
+                              actor_user_id: currentUser.id,
+                              actor_name: currentUser.name,
+                              actor_role: currentUser.role,
+                              action: 'LOCATION_DELETED',
+                              entity_type: 'Location',
+                              entity_id: loc.code,
+                              summary: `Deleted ${formatEnumLabel(loc.type)} location ${loc.name} (${loc.code} · ${loc.city}).`,
+                              old_values: { code: loc.code, name: loc.name, city: loc.city },
+                              new_values: null,
+                              created_at: new Date().toISOString(),
+                            },
+                            ...prev,
+                          ]);
+                          showToast(`Deleted location ${loc.name} (${loc.code}).`);
+                        }}
+                        className="px-2.5 py-1 rounded-md bg-[#FFF0F3] hover:bg-[#FFE4E9] text-[#9F1D35] border border-[#FECDD3] text-[11px] font-semibold inline-flex items-center gap-1 transition-colors cursor-pointer"
+                        title={`Delete ${loc.name}`}
+                      >
+                        <Trash2 className="w-3 h-3" />
+                        <span>Hapus Location</span>
+                      </button>
                     </div>
                   </div>
                 ))}
