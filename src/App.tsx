@@ -44,6 +44,7 @@ import {
 } from './services/CargoTraceService';
 import { ExternalApiService } from './services/ExternalApiService';
 import {
+  DndAtlasBrandMark,
   ExceptionStatusBadge,
   KpiStatCard,
   LocationTypeBadge,
@@ -973,25 +974,17 @@ export const App: React.FC = () => {
       >
         {/* Top Workspace Header — DND Atlas Worldwide */}
         <div>
-          <div className="h-[58px] px-3 border-b border-[#E2E8F0] flex items-center justify-between gap-1.5">
+          <div className="h-[60px] px-3 border-b border-[#E2E8F0] flex items-center justify-between gap-1.5">
             <button
               type="button"
               onClick={() => setActiveSection('overview')}
-              className="flex items-center gap-2 overflow-hidden text-left cursor-pointer min-w-0"
+              className="flex items-center overflow-hidden text-left cursor-pointer min-w-0"
             >
-              <div className="w-8 h-8 rounded-lg bg-[#072D59] text-[#DBF2FC] flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs">
-                <Anchor className="w-4 h-4" />
-              </div>
-              {!sidebarCollapsed && (
-                <div className="leading-tight min-w-0">
-                  <div className="font-extrabold text-[13px] text-[#072D59] tracking-tight whitespace-nowrap">
-                    DND Atlas Worldwide
-                  </div>
-                  <div className="text-[10px] font-semibold text-[#64748B] truncate">
-                    Global Logistics Portal
-                  </div>
-                </div>
-              )}
+              <DndAtlasBrandMark
+                size="sm"
+                iconOnly={sidebarCollapsed}
+                subtitle="WORLDWIDE"
+              />
             </button>
 
             <button
@@ -3317,22 +3310,160 @@ export const App: React.FC = () => {
           )}
 
           {/* ===================================================================
-              SECTION 13: CODE OWNERSHIP & INTERVIEW Q&A GUIDE (Slide 19 & 20)
+              SECTION 13: LARAVEL 12 + MYSQL 8.0 ARCHITECTURE & CODE OWNERSHIP GUIDE
           =================================================================== */}
           {activeSection === 'code_ownership' && (
-            <div className="space-y-4 max-w-4xl">
-              <div className="flex items-center gap-2.5">
-                <BookOpen className="w-5 h-5 text-[#072D59]" />
-                <div>
-                  <h1 className="text-[21px] font-bold text-[#072D59]">
-                    Code Ownership Interview Guide & Architecture Reference
-                  </h1>
-                  <p className="text-[13px] text-[#6B7A93]">
-                    Prepared for Web Programming 2 UAS Live Demo & Code Interview (Slides 15, 19, 20)
-                  </p>
+            <div className="space-y-5 max-w-5xl">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <BookOpen className="w-5 h-5 text-[#072D59]" />
+                  <div>
+                    <h1 className="text-[21px] font-bold text-[#072D59]">
+                      Laravel 12 + MySQL 8.0 Architecture & Code Ownership Guide
+                    </h1>
+                    <p className="text-[13px] text-[#475569]">
+                      Complete Laravel 12 MVC + Service Layer + Eloquent ORM + MySQL 8.0 reference for VPS deployment & UAS Code Interview (Slides 11–20)
+                    </p>
+                  </div>
+                </div>
+
+                <a
+                  href="/api/database/sql-dump"
+                  download="cargotrace_mysql_schema_and_seed.sql"
+                  className="px-3.5 py-2 rounded-xl bg-[#072D59] hover:bg-[#0A3B73] text-white text-[12.5px] font-semibold inline-flex items-center gap-2 shadow-2xs transition-colors"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Download MySQL 8.0 Schema & Seed (.sql)</span>
+                </a>
+              </div>
+
+              {/* Slide 15 Architecture Flow Pipeline */}
+              <div className="bg-white border border-[#DCE4F0] rounded-2xl p-5 space-y-4 shadow-2xs">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h2 className="text-[14.5px] font-bold text-[#072D59]">
+                    Laravel 12 Layered Architecture Pipeline (Brief Slide 14 & Slide 15)
+                  </h2>
+                  <span className="px-2.5 py-0.5 rounded-md bg-[#DBF2FC] text-[#072D59] text-[11px] font-bold">
+                    PHP 8.3+ · Laravel 12 · MySQL 8.0 InnoDB · Sanctum
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-5 gap-2.5 text-[12px]">
+                  {[
+                    {
+                      step: '1. Browser & Blade',
+                      path: 'resources/views/cargotrace/app.blade.php',
+                      desc: 'Blade view + Tailwind CSS + Leaflet.js OpenStreetMap + Chart.js',
+                    },
+                    {
+                      step: '2. Routes & Middleware',
+                      path: 'routes/api.php · EnsureRolePermission.php',
+                      desc: 'Laravel Sanctum Bearer auth + Server-side RBAC (401/403)',
+                    },
+                    {
+                      step: '3. Controllers',
+                      path: 'app/Http/Controllers/Api/*.php',
+                      desc: 'Request validation (422), ShipmentPolicy checks, JSON pagination',
+                    },
+                    {
+                      step: '4. Service Layer',
+                      path: 'app/Services/{Shipment,Tracking,Eta,Exception}Service.php',
+                      desc: 'Business rules, status state machine, deterministic ETA & DB::transaction',
+                    },
+                    {
+                      step: '5. Models / Eloquent',
+                      path: 'app/Models/*.php · MySQL 8.0',
+                      desc: '9 Eloquent ORM models with belongsTo / hasMany & InnoDB foreign keys',
+                    },
+                  ].map((node) => (
+                    <div
+                      key={node.step}
+                      className="p-3 rounded-xl bg-[#F8FAFC] border border-[#DCE4F0] flex flex-col justify-between gap-1.5"
+                    >
+                      <div>
+                        <div className="font-bold text-[#072D59] text-[12.5px]">{node.step}</div>
+                        <div className="font-mono-tabular text-[10.5px] text-[#0284C7] font-semibold mt-0.5 break-all">
+                          {node.path}
+                        </div>
+                      </div>
+                      <p className="text-[11px] text-[#475569] leading-snug">{node.desc}</p>
+                    </div>
+                  ))}
                 </div>
               </div>
 
+              {/* Slide 11 MySQL 8.0 Relational Tables & Eloquent Models Directory */}
+              <div className="bg-white border border-[#DCE4F0] rounded-2xl overflow-hidden shadow-2xs">
+                <div className="px-5 py-3.5 bg-[#F8FAFC] border-b border-[#DCE4F0] flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h2 className="text-[14.5px] font-bold text-[#072D59]">
+                      MySQL 8.0 Schema & Laravel Eloquent Models (Brief Slide 11)
+                    </h2>
+                    <p className="text-[12px] text-[#475569]">
+                      Defined in <code className="font-mono-tabular text-[#072D59] font-semibold">database/migrations/2026_11_01_000001_create_cargotrace_tables.php</code> &amp; <code className="font-mono-tabular text-[#072D59] font-semibold">database/mysql_schema_and_seed.sql</code>
+                    </p>
+                  </div>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse text-[12px]">
+                    <thead>
+                      <tr className="bg-[#F4F7FB] border-b border-[#DCE4F0] text-[#475569] text-[11px] uppercase tracking-wider">
+                        <th className="py-2.5 px-4 font-bold">MySQL Table</th>
+                        <th className="py-2.5 px-3 font-bold">Eloquent Model</th>
+                        <th className="py-2.5 px-3 font-bold">Cardinality & Foreign Keys</th>
+                        <th className="py-2.5 px-4 font-bold">Purpose (Slide 11)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#E3E9F3]">
+                      {[
+                        { table: 'users', model: 'App\\Models\\User', rel: 'hasMany(Shipment, Notification)', desc: 'Account credentials, password hash, & RBAC role (ADMIN, OPERATOR, CUSTOMER)' },
+                        { table: 'carriers', model: 'App\\Models\\Carrier', rel: 'hasMany(Shipment)', desc: 'Logistics operator master data scoped to SEA, AIR, or ROAD mode' },
+                        { table: 'locations', model: 'App\\Models\\Location', rel: 'hasMany(Shipment origin/dest)', desc: 'Origin & destination hubs (SEAPORT, AIRPORT, DEPOT) with WGS84 coordinates' },
+                        { table: 'shipments', model: 'App\\Models\\Shipment', rel: 'belongsTo(User, Carrier, Location) · hasMany(TrackingEvent, ShipmentItem, ShipmentException)', desc: 'Core shipment header, lifecycle status, expected/estimated arrival, weight/volume' },
+                        { table: 'shipment_items', model: 'App\\Models\\ShipmentItem', rel: 'belongsTo(Shipment) [CASCADE]', desc: 'Cargo manifest line items, SKU, quantity, HS code, weight & volume' },
+                        { table: 'tracking_events', model: 'App\\Models\\TrackingEvent', rel: 'belongsTo(Shipment, Location, User)', desc: 'Append-only chronological journey checkpoints & coordinates (never overwritten)' },
+                        { table: 'shipment_exceptions', model: 'App\\Models\\ShipmentException', rel: 'belongsTo(Shipment, User)', desc: 'Customs hold, weather delay, port congestion, severity & resolution timestamps' },
+                        { table: 'notifications', model: 'App\\Models\\Notification', rel: 'belongsTo(User, Shipment)', desc: 'In-app customer & operator alerts for status updates and delay exceptions' },
+                        { table: 'audit_logs', model: 'App\\Models\\AuditLog', rel: 'belongsTo(User actor)', desc: 'Immutable trail recording actor, action, timestamp, and related entity' },
+                      ].map((row) => (
+                        <tr key={row.table} className="hover:bg-[#F8FAFC]">
+                          <td className="py-2.5 px-4 font-mono-tabular font-bold text-[#072D59]">{row.table}</td>
+                          <td className="py-2.5 px-3 font-mono-tabular text-[#0284C7] font-semibold">{row.model}</td>
+                          <td className="py-2.5 px-3 text-[#334155] font-medium">{row.rel}</td>
+                          <td className="py-2.5 px-4 text-[#475569]">{row.desc}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* VPS Deployment Quick-Start Commands */}
+              <div className="bg-white border border-[#DCE4F0] rounded-2xl p-5 space-y-3 shadow-2xs">
+                <h2 className="text-[14.5px] font-bold text-[#072D59]">
+                  VPS Deployment Commands (Ubuntu + MySQL 8.0 + Laravel 12 / Docker Compose)
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-[12px]">
+                  <div className="p-3.5 rounded-xl bg-[#0F172A] text-[#E2E8F0] font-mono-tabular space-y-1">
+                    <div className="text-[#38BDF8] font-bold mb-1"># Option 1: Native Laravel 12 + MySQL 8.0 on VPS</div>
+                    <div>mysql -u root -p -e &quot;CREATE DATABASE cargotrace_db;&quot;</div>
+                    <div>mysql -u root -p cargotrace_db &lt; database/mysql_schema_and_seed.sql</div>
+                    <div>cp .env.example .env &amp;&amp; composer install</div>
+                    <div>php artisan key:generate &amp;&amp; php artisan migrate --seed</div>
+                    <div>npm install &amp;&amp; npm run build</div>
+                    <div>php artisan serve --host=0.0.0.0 --port=8000</div>
+                  </div>
+                  <div className="p-3.5 rounded-xl bg-[#0F172A] text-[#E2E8F0] font-mono-tabular space-y-1">
+                    <div className="text-[#38BDF8] font-bold mb-1"># Option 2: 1-Command Docker Compose on VPS</div>
+                    <div>cp .env.example .env</div>
+                    <div>docker compose up -d --build</div>
+                    <div className="text-[#94A3B8] pt-1"># Run PHPUnit Feature Tests (Brief Slide 16):</div>
+                    <div>php artisan test --filter=CargoTraceApiTest</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Lecturer Q&A Cards */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {[
                   {
@@ -3340,24 +3471,24 @@ export const App: React.FC = () => {
                     a: 'A single Shipment moves through multiple checkpoints over time (CREATED → BOOKED → PICKED_UP → IN_TRANSIT → DELIVERED). Each checkpoint is an immutable historical record in tracking_events with its own timestamp, coordinates, and operator actor. Overwriting a single column on shipments would destroy the audit trail required by Slide 7.',
                   },
                   {
-                    q: '2. How do we prevent invalid status transitions (e.g., CREATED → DELIVERED)?',
-                    a: 'In ShipmentService::validateStatusTransition (and VALID_STATUS_TRANSITIONS), each status maps strictly to its allowed next state. Terminal status DELIVERED maps to an empty array [], returning HTTP 422 Unprocessable Entity if any caller tries to revert or skip states.',
+                    q: '2. How do we prevent invalid status transitions (e.g., DELIVERED → IN_TRANSIT)?',
+                    a: 'In App\\Services\\ShipmentService::validateTransition(), each status maps strictly to its allowed next state. Terminal status DELIVERED maps to an empty array [], throwing a 422 ValidationException if any caller tries to revert or skip states.',
                   },
                   {
                     q: '3. How does the Multimodal (SEA / AIR / ROAD) validation rule work?',
-                    a: 'In ShipmentService::validateShipmentPayload (and StoreShipmentRequest), we check two invariants: (1) Carrier.mode must equal Shipment.mode, and (2) Origin and Destination location types must match the mode (SEA requires SEAPORTs; AIR requires AIRPORTs; ROAD allows DEPOT, SEAPORT, or AIRPORT).',
+                    a: 'In App\\Services\\ShipmentService::validateMultimodalCompatibility(), we check two invariants before DB::transaction(): (1) Carrier->mode must equal Shipment->mode, and (2) Origin and Destination location types must match the mode (SEA requires SEAPORT; AIR requires AIRPORT; ROAD requires DEPOT).',
                   },
                   {
                     q: '4. How do you change the delay threshold live during the interview?',
-                    a: 'The delay threshold is never hardcoded in EtaService. It is stored in configuration/settings (config/cargotrace.php and the settings table). EtaService::evaluate() accepts the settings object and compares delayHours >= settings.delay_threshold_hours.',
+                    a: 'The delay threshold is never hardcoded in App\\Services\\EtaService. It is stored in config/cargotrace.php (CARGOTRACE_DELAY_THRESHOLD_HOURS=12) and the group_settings table. Updating the threshold immediately recalculates LOW (0–6h), MEDIUM (>6–24h), HIGH (>24h), and threshold exceedance.',
                   },
                   {
                     q: '5. How is Customer data isolation enforced on the server?',
-                    a: 'Hiding buttons in the UI is never sufficient (Slide 5 & 13). ShipmentPolicy::view() and AuthPolicyService::canViewShipment() verify $user->role !== CUSTOMER || $shipment->customer_id === $user->id on every query and endpoint, returning 403 Forbidden if a customer requests another customer’s shipment.',
+                    a: 'Hiding buttons in the UI is never sufficient (Slide 5 & 13). App\\Policies\\ShipmentPolicy::view() and ShipmentController::index() enforce $user->isCustomer() ? $query->where("customer_id", $user->id) : $query on the server, returning HTTP 403 Forbidden if a customer requests another customer’s shipment.',
                   },
                   {
                     q: '6. How do external APIs (Open-Meteo & Nominatim) handle timeouts or failures?',
-                    a: 'ExternalApiService wraps requests with a 3-second timeout and try/catch fallback. If the external service times out or returns an error, the system serves cached operational weather or allows manual WGS84 coordinate entry without crashing the page (Slide 9).',
+                    a: 'App\\Services\\ExternalTelemetryService uses Laravel HTTP Client (Http::timeout(4)->get(...)) inside a try/catch block. If Open-Meteo or Nominatim times out or returns an empty response, it gracefully returns fallback telemetry without crashing the request (Slide 9).',
                   },
                 ].map((item, idx) => (
                   <div

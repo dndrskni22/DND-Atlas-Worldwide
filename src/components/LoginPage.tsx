@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { User } from '../types/cargotrace';
+import { DndAtlasBrandMark } from './CargoTraceUI';
 import {
   Eye,
   EyeOff,
@@ -10,7 +11,6 @@ import {
   ChevronDown,
   ShieldCheck,
   UserCheck,
-  Globe,
 } from 'lucide-react';
 import loginHeroTerminal from '../assets/images/login_hero_terminal_1794057885520.jpg';
 
@@ -69,21 +69,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ users, onLoginSuccess }) =
   return (
     <div className="min-h-screen w-full bg-[#EBF1FA] flex items-center justify-center p-3 sm:p-6">
       <div className="w-full max-w-[1180px] min-h-[670px] bg-white rounded-[28px] shadow-[0_20px_60px_rgba(7,45,89,0.10)] border border-[#D8E3F4] grid grid-cols-1 md:grid-cols-2 overflow-hidden">
-        {/* LEFT COLUMN: Visual Showcase (Inspired by SEWO reference layout) */}
+        {/* LEFT COLUMN: Visual Showcase */}
         <div className="bg-[#F6F9FD] p-7 sm:p-10 flex flex-col justify-between relative border-b md:border-b-0 md:border-r border-[#E6EEF8]">
-          {/* Top-Left Brand Mark */}
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-[#2F6BFF] text-white flex items-center justify-center shadow-xs">
-              <Globe className="w-5 h-5" />
-            </div>
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-[16px] font-extrabold tracking-wider text-[#1E40AF] uppercase">
-                DND ATLAS
-              </span>
-              <span className="text-[11px] font-bold tracking-widest text-[#64748B] uppercase">
-                Worldwide
-              </span>
-            </div>
+          {/* Top-Left Bespoke Maritime & Multimodal Brand Mark */}
+          <div>
+            <DndAtlasBrandMark size="lg" subtitle="WORLDWIDE LOGISTICS" />
           </div>
 
           {/* Center Visual Photo + Overlapping Floating Card */}
@@ -96,7 +86,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ users, onLoginSuccess }) =
               />
             </div>
 
-            {/* Overlapping Floating Corridor Card (mirrors the SEWO floating search card) */}
+            {/* Overlapping Floating Corridor Card */}
             <div className="absolute right-0 sm:right-2 bottom-4 w-[235px] sm:w-[252px] bg-white rounded-2xl shadow-[0_14px_34px_rgba(7,45,89,0.12)] border border-[#E8EEF7] p-4 space-y-2.5">
               <button
                 type="button"
@@ -109,10 +99,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({ users, onLoginSuccess }) =
                       : 'Sea Freight'
                   )
                 }
-                className="w-full flex items-center justify-between px-3 py-2 rounded-lg border border-[#E8EEF7] bg-[#F8FAFD] hover:border-[#2F6BFF] text-left transition-colors"
+                className="w-full flex items-center justify-between px-3 py-2 rounded-lg border border-[#E8EEF7] bg-[#F8FAFD] hover:border-[#072D59] text-left transition-colors"
               >
                 <span className="inline-flex items-center gap-2 text-[12px] font-bold text-[#072D59]">
-                  <Ship className="w-3.5 h-3.5 text-[#2F6BFF]" />
+                  <Ship className="w-3.5 h-3.5 text-[#0284C7]" />
                   <span>{previewMode}</span>
                 </span>
                 <ChevronDown className="w-3.5 h-3.5 text-[#64748B]" />
@@ -134,7 +124,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ users, onLoginSuccess }) =
                 <ChevronDown className="w-3.5 h-3.5 text-[#94A3B8]" />
               </div>
 
-              <div className="w-full py-2 rounded-lg bg-[#2F6BFF] text-white text-center text-[12.5px] font-semibold shadow-2xs">
+              <div className="w-full py-2 rounded-lg bg-[#072D59] text-white text-center text-[12.5px] font-semibold shadow-2xs">
                 46 Active Shipments
               </div>
             </div>
@@ -142,35 +132,37 @@ export const LoginPage: React.FC<LoginPageProps> = ({ users, onLoginSuccess }) =
 
           {/* Bottom-Left Headline & Indicator Dots */}
           <div className="space-y-3">
-            <h1 className="text-[28px] lg:text-[32px] font-extrabold text-[#072D59] tracking-tight leading-tight">
+            <h1 className="font-brand-display text-[28px] lg:text-[33px] font-extrabold text-[#072D59] tracking-tight leading-tight">
               Track your global cargo
             </h1>
             <p className="text-[14px] text-[#64748B] leading-relaxed max-w-sm">
               Monitor sea vessels, air freighters, and overland trucks in just a few clicks.
             </p>
             <div className="flex items-center gap-2 pt-2">
-              <span className="w-8 h-1.5 rounded-full bg-[#2F6BFF]" />
-              <span className="w-1.5 h-1.5 rounded-full bg-[#BFDBFE]" />
-              <span className="w-1.5 h-1.5 rounded-full bg-[#BFDBFE]" />
+              <span className="w-8 h-1.5 rounded-full bg-[#072D59]" />
+              <span className="w-1.5 h-1.5 rounded-full bg-[#93C5FD]" />
+              <span className="w-1.5 h-1.5 rounded-full bg-[#93C5FD]" />
             </div>
           </div>
         </div>
 
-        {/* RIGHT COLUMN: Sign-In Form (Inspired by SEWO reference layout) */}
+        {/* RIGHT COLUMN: Sign-In Form */}
         <div className="bg-white p-7 sm:p-12 flex flex-col justify-between">
           {/* Top-Right Label */}
           <div className="flex items-center justify-end">
-            <span className="text-[13px] font-bold text-[#072D59]">Login</span>
+            <span className="font-brand-sub text-[12px] font-bold uppercase tracking-[0.2em] text-[#475569]">
+              Authorized Portal
+            </span>
           </div>
 
           {/* Center Form Container */}
           <div className="w-full max-w-[380px] mx-auto my-auto space-y-6">
             <div>
-              <h2 className="text-[26px] sm:text-[29px] font-extrabold text-[#072D59] tracking-tight">
-                Welcome Back to DND Atlas!
+              <h2 className="font-brand-display text-[27px] sm:text-[30px] font-extrabold text-[#072D59] tracking-tight leading-tight">
+                Welcome Back to DND Atlas
               </h2>
-              <p className="text-[13.5px] text-[#64748B] mt-1">
-                Sign in your account
+              <p className="text-[13.5px] text-[#64748B] mt-1.5">
+                Sign in to your multimodal operations account
               </p>
             </div>
 

@@ -34,6 +34,15 @@
     font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     font-variant-numeric: tabular-nums;
   }
+
+  .font-brand-display {
+    font-family: 'Outfit', 'Space Grotesk', 'Plus Jakarta Sans', sans-serif;
+    font-feature-settings: "ss01" 1, "cv01" 1;
+  }
+
+  .font-brand-sub {
+    font-family: 'Space Grotesk', 'Plus Jakarta Sans', sans-serif;
+  }
 }
 
 /* Upgrade muted text contrast across all pages for effortless WCAG AA+ readability */

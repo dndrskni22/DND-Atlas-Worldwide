@@ -736,5 +736,11 @@ export function createCargoTraceApiRouter() {
     res.status(200).json({ data: auditLogs });
   });
 
+  // Downloadable MySQL 8.0 Schema & Seed SQL dump for VPS deployment (Brief Slide 11 & 14)
+  router.get('/database/sql-dump', (_req: Request, res: Response) => {
+    const sqlPath = `${process.cwd()}/database/mysql_schema_and_seed.sql`;
+    res.download(sqlPath, 'cargotrace_mysql_schema_and_seed.sql');
+  });
+
   return router;
 }
