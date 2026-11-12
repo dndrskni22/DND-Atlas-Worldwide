@@ -1,0 +1,51 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: cargotrace-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootsecret}
+      MYSQL_DATABASE: ${DB_DATABASE:-cargotrace_db}
+      MYSQL_USER: ${DB_USERNAME:-cargotrace_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-cargotrace_pass}
+    ports:
+      - "${DB_PORT:-3306}:3306"
+    volumes:
+      - cargotrace_mysql_data:/var/lib/mysql
+      - ./database/mysql_schema_and_seed.sql:/docker-entrypoint-initdb.d/01_schema_and_seed.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cargotrace-app
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      APP_NAME: "DND Atlas Worldwide"
+      APP_ENV: production
+      APP_DEBUG: "false"
+      APP_URL: ${APP_URL:-http://localhost:3000}
+      DB_CONNECTION: mysql
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_DATABASE: ${DB_DATABASE:-cargotrace_db}
+      DB_USERNAME: ${DB_USERNAME:-cargotrace_user}
+      DB_PASSWORD: ${DB_PASSWORD:-cargotrace_pass}
+      CARGOTRACE_GROUP: "Group A"
+      CARGOTRACE_PRIMARY_ROUTE: "Southeast Asia -> Europe"
+      CARGOTRACE_DELAY_THRESHOLD_HOURS: 12
+      CARGOTRACE_MAIN_EXCEPTION_FOCUS: "CUSTOMS_HOLD"
+    ports:
+      - "3000:3000"
+      - "8000:8000"
+
+volumes:
+  cargotrace_mysql_data:
