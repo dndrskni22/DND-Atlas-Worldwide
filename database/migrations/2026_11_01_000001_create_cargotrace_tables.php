@@ -152,7 +152,7 @@ return new class extends Migration
             $table->string('shipment_number', 32)->nullable();
             $table->string('title', 180);
             $table->text('message');
-            $table->enum('type', ['DELAY_ALERT', 'EXCEPTION_OPENED', 'STATUS_UPDATE']);
+            $table->enum('type', ['DELAY_ALERT', 'DELAY_DETECTED', 'EXCEPTION_OPENED', 'STATUS_CHANGED', 'STATUS_UPDATE']);
             $table->boolean('is_read')->default(false);
             $table->timestamp('created_at')->useCurrent();
         });
