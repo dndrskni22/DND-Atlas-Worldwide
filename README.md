@@ -93,9 +93,9 @@ npm test                # TypeScript service and router tests (tsx --test)
 
 ## Deployment
 
-The live demo runs on a VPS behind Apache on port 80, proxied to the
+The live demo runs on a VPS behind nginx on port 80, proxied to the
 Laravel server on port 3100 (`dnd-atlas.service`, `php artisan serve`).
-Live link: http://43.173.52.180/
+Live link: http://16.16.196.20/
 
 ## Known limitations
 
