@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { User } from '../types/cargotrace';
-import { DndAtlasBrandMark } from './CargoTraceUI';
+import { DndAtlasBrandMark, LanguageSwitcher } from './CargoTraceUI';
+import { Language } from '../i18n/translations';
 import {
   Eye,
   EyeOff,
@@ -17,15 +18,37 @@ import loginHeroTerminal from '../assets/images/login_hero_terminal_179405788552
 interface LoginPageProps {
   users: User[];
   onLoginSuccess: (user: User) => void;
+  lang?: Language;
+  onChangeLang?: (lang: Language) => void;
 }
 
-export const LoginPage: React.FC<LoginPageProps> = ({ users, onLoginSuccess }) => {
+export const LoginPage: React.FC<LoginPageProps> = ({
+  users,
+  onLoginSuccess,
+  lang = 'id',
+  onChangeLang,
+}) => {
   const [email, setEmail] = useState('admin@cargotrace.id');
   const [password, setPassword] = useState('password123');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [previewMode, setPreviewMode] = useState<'Sea Freight' | 'Air Freight' | 'Road Freight'>('Sea Freight');
+  const [previewMode, setPreviewMode] = useState<'SEA' | 'AIR' | 'ROAD'>('SEA');
+
+  const isId = lang === 'id';
+
+  const previewModeLabel =
+    previewMode === 'SEA'
+      ? isId
+        ? 'Kargo Laut'
+        : 'Sea Freight'
+      : previewMode === 'AIR'
+      ? isId
+        ? 'Kargo Udara'
+        : 'Air Freight'
+      : isId
+      ? 'Kargo Darat'
+      : 'Road Freight';
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,12 +56,16 @@ export const LoginPage: React.FC<LoginPageProps> = ({ users, onLoginSuccess }) =
 
     const normalizedEmail = email.trim().toLowerCase();
     if (!normalizedEmail) {
-      setErrorMessage('Please enter your email address.');
+      setErrorMessage(
+        isId ? 'Silakan masukkan alamat email Anda.' : 'Please enter your email address.'
+      );
       return;
     }
 
     if (!password || password.length < 4) {
-      setErrorMessage('Please enter a valid password.');
+      setErrorMessage(
+        isId ? 'Silakan masukkan kata sandi yang valid.' : 'Please enter a valid password.'
+      );
       return;
     }
 
@@ -48,7 +75,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ users, onLoginSuccess }) =
 
     if (!matchedUser) {
       setErrorMessage(
-        'Account not found. Please check README.md for registered Admin, Operator, and Customer emails.'
+        isId
+          ? 'Akun tidak ditemukan. Gunakan tombol Masuk Instan di bawah atau periksa README.md.'
+          : 'Account not found. Please check README.md for registered Admin, Operator, and Customer emails.'
       );
       return;
     }
@@ -73,7 +102,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({ users, onLoginSuccess }) =
         <div className="bg-[#F6F9FD] p-7 sm:p-10 flex flex-col justify-between relative border-b md:border-b-0 md:border-r border-[#E6EEF8]">
           {/* Top-Left Bespoke Maritime & Multimodal Brand Mark */}
           <div>
-            <DndAtlasBrandMark size="lg" subtitle="WORLDWIDE LOGISTICS" />
+            <DndAtlasBrandMark
+              size="lg"
+              subtitle={isId ? 'LOGISTIK SELURUH DUNIA' : 'WORLDWIDE LOGISTICS'}
+            />
           </div>
 
           {/* Center Visual Photo + Overlapping Floating Card */}
@@ -92,18 +124,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ users, onLoginSuccess }) =
                 type="button"
                 onClick={() =>
                   setPreviewMode((m) =>
-                    m === 'Sea Freight'
-                      ? 'Air Freight'
-                      : m === 'Air Freight'
-                      ? 'Road Freight'
-                      : 'Sea Freight'
+                    m === 'SEA' ? 'AIR' : m === 'AIR' ? 'ROAD' : 'SEA'
                   )
                 }
                 className="w-full flex items-center justify-between px-3 py-2 rounded-lg border border-[#E8EEF7] bg-[#F8FAFD] hover:border-[#072D59] text-left transition-colors"
               >
                 <span className="inline-flex items-center gap-2 text-[12px] font-bold text-[#072D59]">
                   <Ship className="w-3.5 h-3.5 text-[#0284C7]" />
-                  <span>{previewMode}</span>
+                  <span>{previewModeLabel}</span>
                 </span>
                 <ChevronDown className="w-3.5 h-3.5 text-[#64748B]" />
               </button>
@@ -111,7 +139,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ users, onLoginSuccess }) =
               <div className="w-full flex items-center justify-between px-3 py-2 rounded-lg border border-[#E8EEF7] bg-[#F8FAFD] text-[12px] text-[#64748B]">
                 <span className="inline-flex items-center gap-2">
                   <Calendar className="w-3.5 h-3.5 text-[#072D59]" />
-                  <span>Nov 2026 Schedule</span>
+                  <span>{isId ? 'Jadwal Nov 2026' : 'Nov 2026 Schedule'}</span>
                 </span>
                 <ChevronDown className="w-3.5 h-3.5 text-[#94A3B8]" />
               </div>
@@ -119,13 +147,13 @@ export const LoginPage: React.FC<LoginPageProps> = ({ users, onLoginSuccess }) =
               <div className="w-full flex items-center justify-between px-3 py-2 rounded-lg border border-[#E8EEF7] bg-[#F8FAFD] text-[12px] text-[#64748B]">
                 <span className="inline-flex items-center gap-2">
                   <MapPin className="w-3.5 h-3.5 text-[#072D59]" />
-                  <span>SE Asia → Europe</span>
+                  <span>{isId ? 'Jaringan Seluruh Dunia' : 'Worldwide Network'}</span>
                 </span>
                 <ChevronDown className="w-3.5 h-3.5 text-[#94A3B8]" />
               </div>
 
               <div className="w-full py-2 rounded-lg bg-[#072D59] text-white text-center text-[12.5px] font-semibold shadow-2xs">
-                46 Active Shipments
+                {isId ? '56 Pengiriman Global' : '56 Global Shipments'}
               </div>
             </div>
           </div>
@@ -133,10 +161,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ users, onLoginSuccess }) =
           {/* Bottom-Left Headline & Indicator Dots */}
           <div className="space-y-3">
             <h1 className="font-brand-display text-[28px] lg:text-[33px] font-extrabold text-[#072D59] tracking-tight leading-tight">
-              Track your global cargo
+              {isId ? 'Lacak kargo global Anda' : 'Track your global cargo'}
             </h1>
             <p className="text-[14px] text-[#64748B] leading-relaxed max-w-sm">
-              Monitor sea vessels, air freighters, and overland trucks in just a few clicks.
+              {isId
+                ? 'Pantau kapal laut, pesawat kargo, dan armada truk darat lintas benua dalam beberapa klik.'
+                : 'Monitor sea vessels, air freighters, and overland trucks in just a few clicks.'}
             </p>
             <div className="flex items-center gap-2 pt-2">
               <span className="w-8 h-1.5 rounded-full bg-[#072D59]" />
@@ -148,21 +178,24 @@ export const LoginPage: React.FC<LoginPageProps> = ({ users, onLoginSuccess }) =
 
         {/* RIGHT COLUMN: Sign-In Form */}
         <div className="bg-white p-7 sm:p-12 flex flex-col justify-between">
-          {/* Top-Right Label */}
-          <div className="flex items-center justify-end">
-            <span className="font-brand-sub text-[12px] font-bold uppercase tracking-[0.2em] text-[#475569]">
-              Authorized Portal
+          {/* Top-Right Language Switcher + Label */}
+          <div className="flex items-center justify-between gap-2">
+            <span className="font-brand-sub text-[11.5px] font-bold uppercase tracking-[0.18em] text-[#475569]">
+              {isId ? 'Portal Resmi' : 'Authorized Portal'}
             </span>
+            {onChangeLang && <LanguageSwitcher lang={lang} onChange={onChangeLang} />}
           </div>
 
           {/* Center Form Container */}
           <div className="w-full max-w-[380px] mx-auto my-auto space-y-6">
             <div>
               <h2 className="font-brand-display text-[27px] sm:text-[30px] font-extrabold text-[#072D59] tracking-tight leading-tight">
-                Welcome Back to DND Atlas
+                {isId ? 'Selamat Datang di DND Atlas' : 'Welcome Back to DND Atlas'}
               </h2>
               <p className="text-[13.5px] text-[#64748B] mt-1.5">
-                Sign in to your multimodal operations account
+                {isId
+                  ? 'Masuk ke akun operasional logistik multimoda Anda'
+                  : 'Sign in to your multimodal operations account'}
               </p>
             </div>
 
@@ -182,7 +215,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ users, onLoginSuccess }) =
                   htmlFor="login-email"
                   className="block text-[12.5px] font-semibold text-[#1E293B] mb-1.5"
                 >
-                  Your Email
+                  {isId ? 'Alamat Email' : 'Your Email'}
                 </label>
                 <input
                   id="login-email"
@@ -202,7 +235,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ users, onLoginSuccess }) =
                   htmlFor="login-password"
                   className="block text-[12.5px] font-semibold text-[#1E293B] mb-1.5"
                 >
-                  Password
+                  {isId ? 'Kata Sandi' : 'Password'}
                 </label>
                 <div className="relative">
                   <input
@@ -213,7 +246,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ users, onLoginSuccess }) =
                     autoComplete="current-password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter your password"
+                    placeholder={isId ? 'Masukkan kata sandi' : 'Enter your password'}
                     className="w-full pl-4 pr-10 py-2.5 rounded-xl border border-[#CBD5E1] bg-white text-[13.5px] font-medium text-[#072D59] placeholder:text-[#94A3B8] focus:border-[#072D59] focus:outline-none transition-colors"
                   />
                   <button
@@ -239,10 +272,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ users, onLoginSuccess }) =
                     onChange={(e) => setRememberMe(e.target.checked)}
                     className="w-4 h-4 rounded accent-[#2F6BFF]"
                   />
-                  <span>Remember Me</span>
+                  <span>{isId ? 'Ingat Saya' : 'Remember Me'}</span>
                 </label>
                 <span className="text-[#64748B] text-[12px]">
-                  Pass: <code className="font-semibold text-[#072D59]">password123</code>
+                  {isId ? 'Sandi:' : 'Pass:'}{' '}
+                  <code className="font-semibold text-[#072D59]">password123</code>
                 </span>
               </div>
 
@@ -251,20 +285,20 @@ export const LoginPage: React.FC<LoginPageProps> = ({ users, onLoginSuccess }) =
                 data-testid="login-submit-button"
                 className="w-full py-3 rounded-xl bg-[#2F6BFF] hover:bg-[#1D4ED8] text-white font-semibold text-[14px] shadow-sm transition-colors cursor-pointer"
               >
-                Login
+                {isId ? 'Masuk ke Portal' : 'Login'}
               </button>
             </form>
 
-            {/* Divider matching "Instan Login" in the SEWO reference */}
+            {/* Divider matching "Instan Login" */}
             <div className="relative flex items-center justify-center">
               <div className="border-t border-[#E2E8F0] w-full" />
               <span className="bg-white px-3 text-[11.5px] text-[#94A3B8] font-medium whitespace-nowrap">
-                Instant Role Login
+                {isId ? 'Masuk Instan Berdasarkan Peran' : 'Instant Role Login'}
               </span>
               <div className="border-t border-[#E2E8F0] w-full" />
             </div>
 
-            {/* Two side-by-side buttons matching SEWO bottom buttons */}
+            {/* Two side-by-side buttons */}
             <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
@@ -272,7 +306,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ users, onLoginSuccess }) =
                 className="px-3 py-2.5 rounded-xl border border-[#E2E8F0] hover:border-[#2F6BFF] bg-white text-[12px] font-semibold text-[#1E293B] inline-flex items-center justify-center gap-2 transition-colors cursor-pointer"
               >
                 <ShieldCheck className="w-4 h-4 text-[#2F6BFF] shrink-0" />
-                <span>Admin Portal</span>
+                <span>{isId ? 'Portal Admin' : 'Admin Portal'}</span>
               </button>
               <button
                 type="button"
@@ -280,22 +314,23 @@ export const LoginPage: React.FC<LoginPageProps> = ({ users, onLoginSuccess }) =
                 className="px-3 py-2.5 rounded-xl border border-[#E2E8F0] hover:border-[#2F6BFF] bg-white text-[12px] font-semibold text-[#1E293B] inline-flex items-center justify-center gap-2 transition-colors cursor-pointer"
               >
                 <UserCheck className="w-4 h-4 text-[#0D9488] shrink-0" />
-                <span>Operator Desk</span>
+                <span>{isId ? 'Meja Operator' : 'Operator Desk'}</span>
               </button>
             </div>
           </div>
 
           {/* Bottom Footer Link */}
           <div className="text-center text-[12px] text-[#64748B] pt-4">
-            Testing Customer isolation?{' '}
+            {isId ? 'Ingin menguji akun Pelanggan?' : 'Testing Customer isolation?'}{' '}
             <button
               type="button"
               onClick={() => handleInstantLogin('ayu@nusantararetail.co.id')}
               className="font-bold text-[#2F6BFF] hover:underline cursor-pointer"
             >
-              Sign in as Customer
+              {isId ? 'Masuk sebagai Pelanggan' : 'Sign in as Customer'}
             </button>{' '}
-            · Full list in <code className="font-semibold text-[#072D59]">README.md</code>
+            · {isId ? 'Daftar lengkap di' : 'Full list in'}{' '}
+            <code className="font-semibold text-[#072D59]">README.md</code>
           </div>
         </div>
       </div>

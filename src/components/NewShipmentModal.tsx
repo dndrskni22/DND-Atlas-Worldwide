@@ -6,8 +6,9 @@ import {
   User,
   UserRole,
 } from '../types/cargotrace';
+import { Language, translateMode } from '../i18n/translations';
 import { ModeIconChip } from './CargoTraceUI';
-import { X, AlertCircle, CheckCircle2, Plus } from 'lucide-react';
+import { X, AlertCircle, Plus } from 'lucide-react';
 
 interface NewShipmentModalProps {
   isOpen: boolean;
@@ -15,6 +16,7 @@ interface NewShipmentModalProps {
   carriers: Carrier[];
   locations: Location[];
   customers: User[];
+  lang?: Language;
   onCreateShipment: (payload: {
     mode: TransportMode;
     customer_id: number;
@@ -36,6 +38,7 @@ export const NewShipmentModal: React.FC<NewShipmentModalProps> = ({
   carriers,
   locations,
   customers,
+  lang = 'id',
   onCreateShipment,
 }) => {
   const [mode, setMode] = useState<TransportMode>(TransportMode.SEA);
@@ -51,6 +54,8 @@ export const NewShipmentModal: React.FC<NewShipmentModalProps> = ({
   const [expectedArr, setExpectedArr] = useState('2026-11-24T16:00');
   const [validationError, setValidationError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
+
+  const isId = lang === 'id';
 
   useEffect(() => {
     if (!isOpen) return;
@@ -127,10 +132,12 @@ export const NewShipmentModal: React.FC<NewShipmentModalProps> = ({
         <div className="px-6 py-4 bg-[#F4F7FB] border-b border-[#E3E9F3] flex items-center justify-between">
           <div>
             <h2 className="text-[17px] font-bold text-[#072D59]">
-              Create Multimodal Shipment
+              {isId ? 'Buat Pengiriman Multimoda Baru' : 'Create Multimodal Shipment'}
             </h2>
             <p className="text-[12.5px] text-[#475569]">
-              Register a sea, air, or overland waybill with origin and destination hub validation.
+              {isId
+                ? 'Daftarkan pengiriman kargo laut, udara, atau darat dengan validasi kecocokan lokasi hub asal & tujuan.'
+                : 'Register a sea, air, or overland waybill with origin and destination hub validation.'}
             </p>
           </div>
           <button
@@ -164,7 +171,9 @@ export const NewShipmentModal: React.FC<NewShipmentModalProps> = ({
           {/* Transport Mode Selector */}
           <div>
             <label className="block text-[11.5px] font-semibold text-[#072D59] mb-1.5">
-              1. Select Primary Transport Mode (Option A)
+              {isId
+                ? '1. Pilih Moda Transportasi Utama'
+                : '1. Select Primary Transport Mode (Option A)'}
             </label>
             <div className="grid grid-cols-3 gap-2.5">
               {[TransportMode.SEA, TransportMode.AIR, TransportMode.ROAD].map((m) => (
@@ -178,14 +187,22 @@ export const NewShipmentModal: React.FC<NewShipmentModalProps> = ({
                       : 'bg-white border-[#E3E9F3] hover:bg-[#F4F7FB]'
                   }`}
                 >
-                  <ModeIconChip mode={m} size="sm" />
+                  <ModeIconChip mode={m} size="sm" lang={lang} />
                   <div>
-                    <div className="font-bold text-[#072D59] text-[12.5px]">{m}</div>
+                    <div className="font-bold text-[#072D59] text-[12.5px]">
+                      {translateMode(m, lang)}
+                    </div>
                     <div className="text-[10.5px] text-[#6B7A93]">
                       {m === TransportMode.SEA
-                        ? 'Seaport → Seaport'
+                        ? isId
+                          ? 'Pelabuhan → Pelabuhan'
+                          : 'Seaport → Seaport'
                         : m === TransportMode.AIR
-                        ? 'Airport → Airport'
+                        ? isId
+                          ? 'Bandara → Bandara'
+                          : 'Airport → Airport'
+                        : isId
+                        ? 'Depo Darat → Depo'
                         : 'Depot / Intermodal'}
                     </div>
                   </div>
@@ -200,7 +217,7 @@ export const NewShipmentModal: React.FC<NewShipmentModalProps> = ({
                 htmlFor="new-shipment-customer"
                 className="block text-[11.5px] font-semibold text-[#243350] mb-1"
               >
-                Customer Account
+                {isId ? 'Akun Pelanggan' : 'Customer Account'}
               </label>
               <select
                 id="new-shipment-customer"
@@ -223,7 +240,9 @@ export const NewShipmentModal: React.FC<NewShipmentModalProps> = ({
                 htmlFor="new-shipment-carrier"
                 className="block text-[11.5px] font-semibold text-[#243350] mb-1"
               >
-                Carrier Operator (Must match {mode})
+                {isId
+                  ? `Maskapai / Operator (Wajib sesuai ${mode})`
+                  : `Carrier Operator (Must match ${mode})`}
               </label>
               <select
                 id="new-shipment-carrier"
@@ -244,7 +263,7 @@ export const NewShipmentModal: React.FC<NewShipmentModalProps> = ({
                 htmlFor="new-shipment-origin"
                 className="block text-[11.5px] font-semibold text-[#243350] mb-1"
               >
-                Origin Location
+                {isId ? 'Lokasi Asal (Origin)' : 'Origin Location'}
               </label>
               <select
                 id="new-shipment-origin"
@@ -265,7 +284,7 @@ export const NewShipmentModal: React.FC<NewShipmentModalProps> = ({
                 htmlFor="new-shipment-destination"
                 className="block text-[11.5px] font-semibold text-[#243350] mb-1"
               >
-                Destination Location
+                {isId ? 'Lokasi Tujuan (Destination)' : 'Destination Location'}
               </label>
               <select
                 id="new-shipment-destination"
@@ -286,7 +305,9 @@ export const NewShipmentModal: React.FC<NewShipmentModalProps> = ({
                 htmlFor="new-shipment-vehicle"
                 className="block text-[11.5px] font-semibold text-[#243350] mb-1"
               >
-                Vehicle Reference (Vessel / Flight / Plate)
+                {isId
+                  ? 'Referensi Kendaraan (Nama Kapal / No. Penerbangan / Plat Truk)'
+                  : 'Vehicle Reference (Vessel / Flight / Plate)'}
               </label>
               <input
                 id="new-shipment-vehicle"
@@ -303,7 +324,7 @@ export const NewShipmentModal: React.FC<NewShipmentModalProps> = ({
                 htmlFor="new-shipment-cargo"
                 className="block text-[11.5px] font-semibold text-[#243350] mb-1"
               >
-                Cargo Type & Commodity Description
+                {isId ? 'Jenis Kargo & Deskripsi Barang' : 'Cargo Type & Commodity Description'}
               </label>
               <input
                 id="new-shipment-cargo"
@@ -320,7 +341,7 @@ export const NewShipmentModal: React.FC<NewShipmentModalProps> = ({
                 htmlFor="new-shipment-weight"
                 className="block text-[11.5px] font-semibold text-[#243350] mb-1"
               >
-                Total Gross Weight (kg)
+                {isId ? 'Total Berat Kotor (kg)' : 'Total Gross Weight (kg)'}
               </label>
               <input
                 id="new-shipment-weight"
@@ -338,7 +359,7 @@ export const NewShipmentModal: React.FC<NewShipmentModalProps> = ({
                 htmlFor="new-shipment-volume"
                 className="block text-[11.5px] font-semibold text-[#243350] mb-1"
               >
-                Total Volume (CBM)
+                {isId ? 'Total Volume Kubikasi (CBM)' : 'Total Volume (CBM)'}
               </label>
               <input
                 id="new-shipment-volume"
@@ -356,7 +377,7 @@ export const NewShipmentModal: React.FC<NewShipmentModalProps> = ({
                 htmlFor="new-shipment-dep"
                 className="block text-[11.5px] font-semibold text-[#243350] mb-1"
               >
-                Expected Departure (UTC)
+                {isId ? 'Jadwal Keberangkatan (UTC)' : 'Expected Departure (UTC)'}
               </label>
               <input
                 id="new-shipment-dep"
@@ -373,7 +394,7 @@ export const NewShipmentModal: React.FC<NewShipmentModalProps> = ({
                 htmlFor="new-shipment-arr"
                 className="block text-[11.5px] font-semibold text-[#243350] mb-1"
               >
-                Expected Arrival (UTC)
+                {isId ? 'Jadwal Tiba / Estimasi Awal (UTC)' : 'Expected Arrival (UTC)'}
               </label>
               <input
                 id="new-shipment-arr"
@@ -388,7 +409,15 @@ export const NewShipmentModal: React.FC<NewShipmentModalProps> = ({
 
           <div className="pt-3 border-t border-[#E3E9F3] flex items-center justify-between gap-3">
             <span className="text-[11.5px] text-[#475569]">
-              New shipments start in <strong>Created</strong> status.
+              {isId ? (
+                <>
+                  Pengiriman baru dimulai dengan status <strong>Dibuat (Created)</strong>.
+                </>
+              ) : (
+                <>
+                  New shipments start in <strong>Created</strong> status.
+                </>
+              )}
             </span>
             <div className="flex items-center gap-2">
               <button
@@ -396,14 +425,14 @@ export const NewShipmentModal: React.FC<NewShipmentModalProps> = ({
                 onClick={onClose}
                 className="px-4 py-2 rounded-lg border border-[#E3E9F3] text-[#243350] text-[12.5px] font-medium hover:bg-[#F4F7FB]"
               >
-                Cancel
+                {isId ? 'Batal' : 'Cancel'}
               </button>
               <button
                 type="submit"
                 className="px-4 py-2 rounded-lg bg-[#072D59] text-white text-[12.5px] font-semibold hover:bg-[#051F3E] inline-flex items-center gap-1.5"
               >
                 <Plus className="w-4 h-4" />
-                <span>Create Shipment</span>
+                <span>{isId ? 'Simpan Pengiriman' : 'Create Shipment'}</span>
               </button>
             </div>
           </div>

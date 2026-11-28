@@ -22,13 +22,13 @@ import {
 } from '../types/cargotrace';
 
 export const INITIAL_GROUP_SETTINGS: GroupConfigSettings = {
-  group_name: 'Group A',
-  primary_route_focus: 'Southeast Asia → Europe',
+  group_name: 'Worldwide Network',
+  primary_route_focus: 'Worldwide Multimodal Corridors (Asia · Europe · Americas · Middle East · Oceania)',
   delay_threshold_hours: 12,
   low_severity_max_hours: 6,
   medium_severity_max_hours: 24,
   main_exception_focus: ExceptionType.CUSTOMS_HOLD,
-  group_kpi_label: 'On-Time Delivery Rate',
+  group_kpi_label: 'Global On-Time Delivery Rate',
   multimodal_option: 'Option A (Primary Mode per Shipment)',
 };
 
@@ -227,6 +227,159 @@ export const SEED_LOCATIONS: Location[] = [
     latitude: 51.4416,
     longitude: 5.4697,
   },
+  // --- NORTH AMERICA HUBS ---
+  {
+    id: 15,
+    code: 'USLAX',
+    name: 'Port of Los Angeles (San Pedro Basin)',
+    city: 'Los Angeles',
+    country: 'United States',
+    type: LocationType.SEAPORT,
+    latitude: 33.7405,
+    longitude: -118.2719,
+  },
+  {
+    id: 16,
+    code: 'USNYC',
+    name: 'Port of New York and New Jersey (Port Newark)',
+    city: 'Newark',
+    country: 'United States',
+    type: LocationType.SEAPORT,
+    latitude: 40.684,
+    longitude: -74.151,
+  },
+  {
+    id: 17,
+    code: 'LAX',
+    name: 'Los Angeles International Cargo Terminal (LAX)',
+    city: 'Los Angeles',
+    country: 'United States',
+    type: LocationType.AIRPORT,
+    latitude: 33.9416,
+    longitude: -118.4085,
+  },
+  {
+    id: 18,
+    code: 'USONT',
+    name: 'Ontario Inland Intermodal Freight Depot',
+    city: 'Ontario',
+    country: 'United States',
+    type: LocationType.DEPOT,
+    latitude: 34.056,
+    longitude: -117.6009,
+  },
+  // --- AUSTRALIA & OCEANIA HUBS ---
+  {
+    id: 19,
+    code: 'AUMEL',
+    name: 'Port of Melbourne (Swanson Dock Terminal)',
+    city: 'Melbourne',
+    country: 'Australia',
+    type: LocationType.SEAPORT,
+    latitude: -37.822,
+    longitude: 144.9125,
+  },
+  {
+    id: 20,
+    code: 'AUSYD',
+    name: 'Port Botany Container Terminal Sydney',
+    city: 'Sydney',
+    country: 'Australia',
+    type: LocationType.SEAPORT,
+    latitude: -33.9745,
+    longitude: 151.2165,
+  },
+  {
+    id: 21,
+    code: 'MEL',
+    name: 'Melbourne Tullamarine Airfreight Hub',
+    city: 'Melbourne',
+    country: 'Australia',
+    type: LocationType.AIRPORT,
+    latitude: -37.669,
+    longitude: 144.841,
+  },
+  {
+    id: 22,
+    code: 'AUBNE',
+    name: 'Sydney Western Intermodal Logistics Depot',
+    city: 'Sydney',
+    country: 'Australia',
+    type: LocationType.DEPOT,
+    latitude: -33.8688,
+    longitude: 150.905,
+  },
+  // --- EAST ASIA, MIDDLE EAST & SOUTH AMERICA HUBS ---
+  {
+    id: 23,
+    code: 'CNSHA',
+    name: 'Port of Shanghai (Yangshan Deep-Water Terminal)',
+    city: 'Shanghai',
+    country: 'China',
+    type: LocationType.SEAPORT,
+    latitude: 30.6265,
+    longitude: 122.0642,
+  },
+  {
+    id: 24,
+    code: 'JPTYO',
+    name: 'Port of Tokyo (Oi Container Terminal)',
+    city: 'Tokyo',
+    country: 'Japan',
+    type: LocationType.SEAPORT,
+    latitude: 35.6197,
+    longitude: 139.7798,
+  },
+  {
+    id: 25,
+    code: 'AEJEA',
+    name: 'Port of Jebel Ali (DP World Terminal 3)',
+    city: 'Dubai',
+    country: 'United Arab Emirates',
+    type: LocationType.SEAPORT,
+    latitude: 25.0112,
+    longitude: 55.0612,
+  },
+  {
+    id: 26,
+    code: 'BRSSZ',
+    name: 'Port of Santos (Tecon Container Terminal)',
+    city: 'Santos',
+    country: 'Brazil',
+    type: LocationType.SEAPORT,
+    latitude: -23.9618,
+    longitude: -46.3322,
+  },
+  {
+    id: 27,
+    code: 'HKG',
+    name: 'Hong Kong International Air Cargo Terminal',
+    city: 'Hong Kong',
+    country: 'China',
+    type: LocationType.AIRPORT,
+    latitude: 22.308,
+    longitude: 113.9185,
+  },
+  {
+    id: 28,
+    code: 'DXB',
+    name: 'Dubai World Central Al Maktoum Cargo Hub',
+    city: 'Dubai',
+    country: 'United Arab Emirates',
+    type: LocationType.AIRPORT,
+    latitude: 24.8964,
+    longitude: 55.1614,
+  },
+  {
+    id: 29,
+    code: 'JFK',
+    name: 'John F. Kennedy International Cargo Terminal',
+    city: 'New York',
+    country: 'United States',
+    type: LocationType.AIRPORT,
+    latitude: 40.6413,
+    longitude: -73.7781,
+  },
 ];
 
 export const SEED_CARRIERS: Carrier[] = [
@@ -297,7 +450,7 @@ export const SEED_CARRIERS: Carrier[] = [
 
 // Generate 45 realistic multimodal shipments anchored around 2026-11-05
 export const SEED_SHIPMENTS: Shipment[] = [
-  // --- SEA FREIGHT SHIPMENTS (18) ---
+  // --- WORLDWIDE SEA FREIGHT SHIPMENTS ---
   {
     id: 101,
     shipment_number: 'DND-2026-000101',
@@ -308,13 +461,13 @@ export const SEED_SHIPMENTS: Shipment[] = [
     mode: TransportMode.SEA,
     vehicle_ref: 'MV Ocean Pertiwi · Voy 408W',
     origin_location_id: 1, // IDTPP Jakarta
-    destination_location_id: 5, // NLRTM Rotterdam
+    destination_location_id: 5, // NLRTM Rotterdam (Europe)
     cargo_type: 'Consumer Electronics & Smart Appliances',
     total_weight_kg: 42500,
     total_volume_cbm: 132,
     expected_departure: '2026-10-18T08:00:00Z',
     expected_arrival: '2026-11-05T06:00:00Z',
-    estimated_arrival: '2026-11-05T22:00:00Z', // +16h delay (MEDIUM, >12h threshold)
+    estimated_arrival: '2026-11-05T22:00:00Z', // +16h delay (MEDIUM)
     actual_arrival: null,
     status: ShipmentStatus.IN_TRANSIT,
     created_at: '2026-10-15T09:00:00Z',
@@ -323,14 +476,14 @@ export const SEED_SHIPMENTS: Shipment[] = [
   {
     id: 102,
     shipment_number: 'DND-2026-000102',
-    route_code: 'RT-0142',
+    route_code: 'RT-0401',
     customer_id: 5,
     customer_name: 'EuroTech Industrial B.V.',
     carrier_id: 2,
     mode: TransportMode.SEA,
-    vehicle_ref: 'MV Northern Meridian · Voy 119E',
+    vehicle_ref: 'MV Pacific Meridian · Voy 119E',
     origin_location_id: 3, // SGSIN Singapore
-    destination_location_id: 5, // NLRTM Rotterdam
+    destination_location_id: 15, // USLAX Los Angeles (North America)
     cargo_type: 'Precision CNC Milling Sub-Assemblies',
     total_weight_kg: 68200,
     total_volume_cbm: 196,
@@ -352,7 +505,7 @@ export const SEED_SHIPMENTS: Shipment[] = [
     mode: TransportMode.SEA,
     vehicle_ref: 'MV Krakatau Star · Voy 204N',
     origin_location_id: 2, // IDSUB Surabaya
-    destination_location_id: 6, // DEHAM Hamburg
+    destination_location_id: 6, // DEHAM Hamburg (Europe)
     cargo_type: 'Specialty Arabica Green Coffee Beans (6x20ft TEU)',
     total_weight_kg: 108000,
     total_volume_cbm: 198,
@@ -367,36 +520,36 @@ export const SEED_SHIPMENTS: Shipment[] = [
   {
     id: 104,
     shipment_number: 'DND-2026-000104',
-    route_code: 'RT-0109',
+    route_code: 'RT-0501',
     customer_id: 4,
     customer_name: 'PT Nusantara Retail',
     carrier_id: 1,
     mode: TransportMode.SEA,
-    vehicle_ref: 'MV Sunda Strait · Voy 812S',
-    origin_location_id: 4, // MYPKG Port Klang
-    destination_location_id: 1, // IDTPP Tanjung Priok
+    vehicle_ref: 'MV Southern Cross · Voy 812S',
+    origin_location_id: 1, // IDTPP Tanjung Priok Jakarta
+    destination_location_id: 19, // AUMEL Melbourne (Australia)
     cargo_type: 'Packaged Food & Retail Gondola Shelving',
     total_weight_kg: 31400,
     total_volume_cbm: 88,
-    expected_departure: '2026-10-28T07:00:00Z',
+    expected_departure: '2026-10-22T07:00:00Z',
     expected_arrival: '2026-11-01T15:00:00Z',
     estimated_arrival: '2026-11-01T14:20:00Z',
     actual_arrival: '2026-11-01T14:20:00Z',
     status: ShipmentStatus.DELIVERED,
-    created_at: '2026-10-25T10:00:00Z',
+    created_at: '2026-10-20T10:00:00Z',
     updated_at: '2026-11-01T15:00:00Z',
   },
   {
     id: 105,
     shipment_number: 'DND-2026-000105',
-    route_code: 'RT-0142',
+    route_code: 'RT-0602',
     customer_id: 5,
     customer_name: 'EuroTech Industrial B.V.',
     carrier_id: 2,
     mode: TransportMode.SEA,
-    vehicle_ref: 'MV Baltic Vanguard · Voy 305W',
-    origin_location_id: 1, // IDTPP Jakarta
-    destination_location_id: 5, // NLRTM Rotterdam
+    vehicle_ref: 'MV Shanghai Vanguard · Voy 305E',
+    origin_location_id: 23, // CNSHA Shanghai (East Asia)
+    destination_location_id: 16, // USNYC Newark / New York (North America)
     cargo_type: 'Solar Inverter Cabinets & Lithium Battery Racks',
     total_weight_kg: 54000,
     total_volume_cbm: 145,
@@ -411,20 +564,20 @@ export const SEED_SHIPMENTS: Shipment[] = [
   {
     id: 106,
     shipment_number: 'DND-2026-000106',
-    route_code: 'RT-0155',
+    route_code: 'RT-0710',
     customer_id: 6,
     customer_name: 'PT IndoAgro Commodities',
     carrier_id: 2,
     mode: TransportMode.SEA,
-    vehicle_ref: 'MV Friesland Express · Voy 611W',
-    origin_location_id: 2, // IDSUB Surabaya
-    destination_location_id: 5, // NLRTM Rotterdam
-    cargo_type: 'Rattan Furniture & Certified Teak Decking',
+    vehicle_ref: 'MV Arabian Gulf Express · Voy 611W',
+    origin_location_id: 24, // JPTYO Tokyo (East Asia)
+    destination_location_id: 25, // AEJEA Jebel Ali Dubai (Middle East)
+    cargo_type: 'Automated Cold-Storage Compressors & Robotics',
     total_weight_kg: 38900,
     total_volume_cbm: 160,
     expected_departure: '2026-11-06T12:00:00Z',
-    expected_arrival: '2026-11-28T09:00:00Z',
-    estimated_arrival: '2026-11-28T09:00:00Z',
+    expected_arrival: '2026-11-24T09:00:00Z',
+    estimated_arrival: '2026-11-24T09:00:00Z',
     actual_arrival: null,
     status: ShipmentStatus.BOOKED,
     created_at: '2026-11-03T10:20:00Z',
@@ -433,42 +586,42 @@ export const SEED_SHIPMENTS: Shipment[] = [
   {
     id: 107,
     shipment_number: 'DND-2026-000107',
-    route_code: 'RT-0160',
+    route_code: 'RT-0805',
     customer_id: 4,
     customer_name: 'PT Nusantara Retail',
     carrier_id: 1,
     mode: TransportMode.SEA,
-    vehicle_ref: 'MV Java Pioneer · Voy 509N',
-    origin_location_id: 1, // IDTPP
-    destination_location_id: 3, // SGSIN
-    cargo_type: 'Garment & Footwear Seasonal Stock',
-    total_weight_kg: 22000,
-    total_volume_cbm: 92,
-    expected_departure: '2026-11-04T18:00:00Z',
-    expected_arrival: '2026-11-06T12:00:00Z',
-    estimated_arrival: '2026-11-06T17:00:00Z', // +5h delay (LOW severity)
+    vehicle_ref: 'MV Southern Atlantic · Voy 509W',
+    origin_location_id: 3, // SGSIN Singapore
+    destination_location_id: 26, // BRSSZ Santos, Brazil (South America)
+    cargo_type: 'Garment, Footwear & Seasonal Retail Stock',
+    total_weight_kg: 46000,
+    total_volume_cbm: 124,
+    expected_departure: '2026-10-19T18:00:00Z',
+    expected_arrival: '2026-11-12T12:00:00Z',
+    estimated_arrival: '2026-11-12T17:00:00Z', // +5h delay (LOW severity)
     actual_arrival: null,
     status: ShipmentStatus.IN_TRANSIT,
-    created_at: '2026-11-02T08:00:00Z',
+    created_at: '2026-10-17T08:00:00Z',
     updated_at: '2026-11-05T00:30:00Z',
   },
   {
     id: 108,
     shipment_number: 'DND-2026-000108',
-    route_code: 'RT-0188',
+    route_code: 'RT-0504',
     customer_id: 6,
     customer_name: 'PT IndoAgro Commodities',
     carrier_id: 2,
     mode: TransportMode.SEA,
-    vehicle_ref: 'MV Elbe Trader · Voy 901W',
-    origin_location_id: 3, // SGSIN
-    destination_location_id: 6, // DEHAM
-    cargo_type: 'Refined Coconut Oil Flexitanks',
+    vehicle_ref: 'MV Tasman Trader · Voy 901S',
+    origin_location_id: 2, // IDSUB Surabaya
+    destination_location_id: 20, // AUSYD Port Botany Sydney (Australia)
+    cargo_type: 'Refined Coconut Oil Flexitanks & Spices',
     total_weight_kg: 84000,
     total_volume_cbm: 112,
     expected_departure: '2026-11-05T14:00:00Z',
-    expected_arrival: '2026-11-26T08:00:00Z',
-    estimated_arrival: '2026-11-26T08:00:00Z',
+    expected_arrival: '2026-11-16T08:00:00Z',
+    estimated_arrival: '2026-11-16T08:00:00Z',
     actual_arrival: null,
     status: ShipmentStatus.PICKED_UP,
     created_at: '2026-11-03T11:00:00Z',
@@ -497,7 +650,7 @@ export const SEED_SHIPMENTS: Shipment[] = [
     updated_at: '2026-11-05T01:00:00Z',
   },
 
-  // --- AIR FREIGHT SHIPMENTS (13) ---
+  // --- WORLDWIDE AIR FREIGHT SHIPMENTS ---
   {
     id: 201,
     shipment_number: 'DND-2026-000201',
@@ -514,7 +667,7 @@ export const SEED_SHIPMENTS: Shipment[] = [
     total_volume_cbm: 28,
     expected_departure: '2026-11-04T16:00:00Z',
     expected_arrival: '2026-11-05T08:00:00Z',
-    estimated_arrival: '2026-11-05T23:00:00Z', // +15h delay (MEDIUM, >12h threshold)
+    estimated_arrival: '2026-11-05T23:00:00Z', // +15h delay (MEDIUM)
     actual_arrival: null,
     status: ShipmentStatus.IN_TRANSIT,
     created_at: '2026-11-03T12:00:00Z',
@@ -523,18 +676,18 @@ export const SEED_SHIPMENTS: Shipment[] = [
   {
     id: 202,
     shipment_number: 'DND-2026-000202',
-    route_code: 'RT-0305',
+    route_code: 'RT-0415',
     customer_id: 4,
     customer_name: 'PT Nusantara Retail',
     carrier_id: 4, // Archipelago AeroFreight
     mode: TransportMode.AIR,
     vehicle_ref: 'Flight AA-519 · Airbus A330-200F',
-    origin_location_id: 8, // SIN Changi
-    destination_location_id: 7, // CGK Jakarta
+    origin_location_id: 27, // HKG Hong Kong
+    destination_location_id: 17, // LAX Los Angeles
     cargo_type: 'Luxury Watches & High-Value Retail Launch Stock',
-    total_weight_kg: 1920,
-    total_volume_cbm: 14,
-    expected_departure: '2026-11-03T04:00:00Z',
+    total_weight_kg: 3920,
+    total_volume_cbm: 24,
+    expected_departure: '2026-11-02T14:00:00Z',
     expected_arrival: '2026-11-03T06:30:00Z',
     estimated_arrival: '2026-11-03T06:25:00Z',
     actual_arrival: '2026-11-03T06:25:00Z',
@@ -567,17 +720,17 @@ export const SEED_SHIPMENTS: Shipment[] = [
   {
     id: 204,
     shipment_number: 'DND-2026-000204',
-    route_code: 'RT-0301',
+    route_code: 'RT-0720',
     customer_id: 5,
     customer_name: 'EuroTech Industrial B.V.',
     carrier_id: 3,
     mode: TransportMode.AIR,
     vehicle_ref: 'Flight ST-844 · Boeing 777F',
-    origin_location_id: 8, // SIN Changi
-    destination_location_id: 9, // AMS Schiphol
+    origin_location_id: 28, // DXB Dubai World Central
+    destination_location_id: 29, // JFK New York
     cargo_type: 'Biomedical Cold-Chain Reagents (2–8°C)',
-    total_weight_kg: 3150,
-    total_volume_cbm: 19,
+    total_weight_kg: 4150,
+    total_volume_cbm: 25,
     expected_departure: '2026-11-02T01:00:00Z',
     expected_arrival: '2026-11-02T14:30:00Z',
     estimated_arrival: '2026-11-02T14:15:00Z',
@@ -596,7 +749,7 @@ export const SEED_SHIPMENTS: Shipment[] = [
     mode: TransportMode.AIR,
     vehicle_ref: 'Flight AA-208 · Airbus A330-200F',
     origin_location_id: 9, // AMS Schiphol
-    destination_location_id: 7, // CGK Jakarta
+    destination_location_id: 8, // SIN Singapore
     cargo_type: 'European Cosmetics & Skincare Pallets',
     total_weight_kg: 5400,
     total_volume_cbm: 34,
@@ -611,14 +764,14 @@ export const SEED_SHIPMENTS: Shipment[] = [
   {
     id: 206,
     shipment_number: 'DND-2026-000206',
-    route_code: 'RT-0301',
+    route_code: 'RT-0418',
     customer_id: 5,
     customer_name: 'EuroTech Industrial B.V.',
     carrier_id: 3,
     mode: TransportMode.AIR,
     vehicle_ref: 'Flight ST-846 · Boeing 777F',
-    origin_location_id: 7, // CGK
-    destination_location_id: 9, // AMS
+    origin_location_id: 17, // LAX Los Angeles
+    destination_location_id: 9, // AMS Amsterdam
     cargo_type: 'Aerospace Avionics Calibration Units',
     total_weight_kg: 2400,
     total_volume_cbm: 15,
@@ -631,7 +784,7 @@ export const SEED_SHIPMENTS: Shipment[] = [
     updated_at: '2026-11-04T16:00:00Z',
   },
 
-  // --- ROAD FREIGHT SHIPMENTS (14) ---
+  // --- WORLDWIDE ROAD FREIGHT SHIPMENTS ---
   {
     id: 301,
     shipment_number: 'DND-2026-000301',
@@ -657,17 +810,17 @@ export const SEED_SHIPMENTS: Shipment[] = [
   {
     id: 302,
     shipment_number: 'DND-2026-000302',
-    route_code: 'RT-0211',
+    route_code: 'RT-0420',
     customer_id: 4,
     customer_name: 'PT Nusantara Retail',
     carrier_id: 6, // Auto Route Freight
     mode: TransportMode.ROAD,
-    vehicle_ref: 'B 9104 KJD · Ford Transit LCV Panel Van',
-    origin_location_id: 1, // IDTPP Tanjung Priok
-    destination_location_id: 12, // IDBDG Bandung Depot
+    vehicle_ref: 'CA-9104-TR · Freightliner Cascadia Class 8',
+    origin_location_id: 15, // USLAX Port of Los Angeles
+    destination_location_id: 18, // USONT Ontario Inland Depot
     cargo_type: 'Imported Apparel & Department Store Fixtures',
-    total_weight_kg: 7600,
-    total_volume_cbm: 34,
+    total_weight_kg: 17600,
+    total_volume_cbm: 54,
     expected_departure: '2026-11-04T06:00:00Z',
     expected_arrival: '2026-11-04T12:00:00Z',
     estimated_arrival: '2026-11-04T11:45:00Z',
@@ -701,17 +854,17 @@ export const SEED_SHIPMENTS: Shipment[] = [
   {
     id: 304,
     shipment_number: 'DND-2026-000304',
-    route_code: 'RT-0219',
+    route_code: 'RT-0520',
     customer_id: 6,
     customer_name: 'PT IndoAgro Commodities',
     carrier_id: 5,
     mode: TransportMode.ROAD,
-    vehicle_ref: 'L 8821 UJ · Hino 500 Ranger Heavy Box',
-    origin_location_id: 13, // IDSLO Surakarta
-    destination_location_id: 2, // IDSUB Tanjung Perak Port
-    cargo_type: 'Pre-carriage Export Cocoa Butter Drums',
-    total_weight_kg: 16200,
-    total_volume_cbm: 54,
+    vehicle_ref: 'NSW-882-HV · Kenworth T610 B-Double',
+    origin_location_id: 20, // AUSYD Port Botany Sydney
+    destination_location_id: 22, // AUBNE Western Sydney Depot
+    cargo_type: 'Bonded Container Drayage: Cocoa Butter Drums',
+    total_weight_kg: 22200,
+    total_volume_cbm: 64,
     expected_departure: '2026-11-03T05:00:00Z',
     expected_arrival: '2026-11-03T13:00:00Z',
     estimated_arrival: '2026-11-03T12:30:00Z',
@@ -766,7 +919,7 @@ export const SEED_SHIPMENTS: Shipment[] = [
   },
 ];
 
-// Generate additional historical & active shipments (IDs 110..134) so total is 45 shipments
+// Additional worldwide shipments (IDs 110..144)
 const EXTRA_SHIPMENTS_DEFINITIONS: Array<{
   id: number;
   num: string;
@@ -787,30 +940,42 @@ const EXTRA_SHIPMENTS_DEFINITIONS: Array<{
   status: ShipmentStatus;
 }> = [
   { id: 110, num: 'DND-2026-000110', route: 'RT-0142', custId: 4, custName: 'PT Nusantara Retail', carrierId: 1, mode: TransportMode.SEA, veh: 'MV Ocean Pertiwi · Voy 406W', orig: 1, dest: 5, cargo: 'Footwear & Apparel Containers', wt: 34000, vol: 120, depOffsetHours: -420, durHours: 360, delayHours: 0, status: ShipmentStatus.DELIVERED },
-  { id: 111, num: 'DND-2026-000111', route: 'RT-0142', custId: 5, custName: 'EuroTech Industrial B.V.', carrierId: 2, mode: TransportMode.SEA, veh: 'MV Northern Meridian · Voy 117E', orig: 3, dest: 5, cargo: 'Automated Conveyor Modules', wt: 51000, vol: 140, depOffsetHours: -380, durHours: 340, delayHours: 0, status: ShipmentStatus.DELIVERED },
+  { id: 111, num: 'DND-2026-000111', route: 'RT-0401', custId: 5, custName: 'EuroTech Industrial B.V.', carrierId: 2, mode: TransportMode.SEA, veh: 'MV Pacific Horizon · Voy 117E', orig: 23, dest: 15, cargo: 'Automated Conveyor Modules', wt: 51000, vol: 140, depOffsetHours: -380, durHours: 340, delayHours: 0, status: ShipmentStatus.DELIVERED },
   { id: 112, num: 'DND-2026-000112', route: 'RT-0188', custId: 6, custName: 'PT IndoAgro Commodities', carrierId: 1, mode: TransportMode.SEA, veh: 'MV Krakatau Star · Voy 202N', orig: 2, dest: 6, cargo: 'Organic Cacao Nibs & Spices', wt: 62000, vol: 155, depOffsetHours: -350, durHours: 320, delayHours: 0, status: ShipmentStatus.DELIVERED },
-  { id: 113, num: 'DND-2026-000113', route: 'RT-0160', custId: 4, custName: 'PT Nusantara Retail', carrierId: 1, mode: TransportMode.SEA, veh: 'MV Java Pioneer · Voy 507N', orig: 1, dest: 3, cargo: 'Retail Packaging & Display Units', wt: 19500, vol: 76, depOffsetHours: -240, durHours: 48, delayHours: 0, status: ShipmentStatus.DELIVERED },
-  { id: 114, num: 'DND-2026-000114', route: 'RT-0109', custId: 6, custName: 'PT IndoAgro Commodities', carrierId: 2, mode: TransportMode.SEA, veh: 'MV Sunda Strait · Voy 810S', orig: 4, dest: 1, cargo: 'Agricultural Fertilizer Pellets', wt: 78000, vol: 170, depOffsetHours: -210, durHours: 72, delayHours: 0, status: ShipmentStatus.DELIVERED },
-  { id: 115, num: 'DND-2026-000115', route: 'RT-0155', custId: 5, custName: 'EuroTech Industrial B.V.', carrierId: 2, mode: TransportMode.SEA, veh: 'MV Friesland Express · Voy 609W', orig: 2, dest: 5, cargo: ' Aluminum Extrusion Profiles', wt: 46000, vol: 110, depOffsetHours: -190, durHours: 240, delayHours: 0, status: ShipmentStatus.IN_TRANSIT },
-  { id: 116, num: 'DND-2026-000116', route: 'RT-0160', custId: 4, custName: 'PT Nusantara Retail', carrierId: 1, mode: TransportMode.SEA, veh: 'MV Java Pioneer · Voy 508N', orig: 3, dest: 1, cargo: 'Commercial Kitchen Equipment', wt: 28000, vol: 95, depOffsetHours: -140, durHours: 50, delayHours: 0, status: ShipmentStatus.DELIVERED },
-  { id: 117, num: 'DND-2026-000117', route: 'RT-0142', custId: 5, custName: 'EuroTech Industrial B.V.', carrierId: 2, mode: TransportMode.SEA, veh: 'MV Baltic Vanguard · Voy 307W', orig: 1, dest: 5, cargo: 'Electric Motor Stators', wt: 53000, vol: 128, depOffsetHours: -96, durHours: 360, delayHours: 0, status: ShipmentStatus.IN_TRANSIT },
-  { id: 118, num: 'DND-2026-000118', route: 'RT-0109', custId: 4, custName: 'PT Nusantara Retail', carrierId: 1, mode: TransportMode.SEA, veh: 'MV Sunda Strait · Voy 814S', orig: 4, dest: 2, cargo: 'Polymer Packaging Film Rolls', wt: 33500, vol: 98, depOffsetHours: -48, durHours: 80, delayHours: 0, status: ShipmentStatus.IN_TRANSIT },
-  { id: 119, num: 'DND-2026-000207', route: 'RT-0301', custId: 5, custName: 'EuroTech Industrial B.V.', carrierId: 3, mode: TransportMode.AIR, veh: 'Flight ST-838 · Boeing 777F', orig: 7, dest: 9, cargo: 'Industrial PLC Controllers', wt: 3200, vol: 21, depOffsetHours: -168, durHours: 16, delayHours: 0, status: ShipmentStatus.DELIVERED },
-  { id: 120, num: 'DND-2026-000208', route: 'RT-0305', custId: 4, custName: 'PT Nusantara Retail', carrierId: 4, mode: TransportMode.AIR, veh: 'Flight AA-515 · Airbus A330-200F', orig: 8, dest: 7, cargo: 'Flagship Smartphone Launch Consignment', wt: 4100, vol: 26, depOffsetHours: -144, durHours: 3, delayHours: 0, status: ShipmentStatus.DELIVERED },
+  { id: 113, num: 'DND-2026-000113', route: 'RT-0710', custId: 4, custName: 'PT Nusantara Retail', carrierId: 1, mode: TransportMode.SEA, veh: 'MV Arabian Star · Voy 507W', orig: 3, dest: 25, cargo: 'Retail Packaging & Display Units', wt: 29500, vol: 96, depOffsetHours: -240, durHours: 168, delayHours: 0, status: ShipmentStatus.DELIVERED },
+  { id: 114, num: 'DND-2026-000114', route: 'RT-0805', custId: 6, custName: 'PT IndoAgro Commodities', carrierId: 2, mode: TransportMode.SEA, veh: 'MV Atlantic Voyager · Voy 810W', orig: 26, dest: 5, cargo: 'Brazilian Coffee & Soy Protein Pellets', wt: 78000, vol: 170, depOffsetHours: -310, durHours: 260, delayHours: 0, status: ShipmentStatus.DELIVERED },
+  { id: 115, num: 'DND-2026-000115', route: 'RT-0602', custId: 5, custName: 'EuroTech Industrial B.V.', carrierId: 2, mode: TransportMode.SEA, veh: 'MV Tokyo Express · Voy 609E', orig: 24, dest: 15, cargo: 'Aluminum Extrusion & Robotics Profiles', wt: 46000, vol: 110, depOffsetHours: -190, durHours: 240, delayHours: 0, status: ShipmentStatus.IN_TRANSIT },
+  { id: 116, num: 'DND-2026-000116', route: 'RT-0501', custId: 4, custName: 'PT Nusantara Retail', carrierId: 1, mode: TransportMode.SEA, veh: 'MV Coral Sea Pioneer · Voy 508S', orig: 3, dest: 20, cargo: 'Commercial Kitchen Equipment', wt: 28000, vol: 95, depOffsetHours: -210, durHours: 160, delayHours: 0, status: ShipmentStatus.DELIVERED },
+  { id: 117, num: 'DND-2026-000117', route: 'RT-0142', custId: 5, custName: 'EuroTech Industrial B.V.', carrierId: 2, mode: TransportMode.SEA, veh: 'MV Baltic Vanguard · Voy 307W', orig: 23, dest: 5, cargo: 'Electric Motor Stators', wt: 53000, vol: 128, depOffsetHours: -96, durHours: 360, delayHours: 0, status: ShipmentStatus.IN_TRANSIT },
+  { id: 118, num: 'DND-2026-000118', route: 'RT-0712', custId: 4, custName: 'PT Nusantara Retail', carrierId: 1, mode: TransportMode.SEA, veh: 'MV Red Sea Trader · Voy 814W', orig: 25, dest: 6, cargo: 'Petrochemical Polymer Packaging Rolls', wt: 43500, vol: 118, depOffsetHours: -88, durHours: 210, delayHours: 0, status: ShipmentStatus.IN_TRANSIT },
+  { id: 119, num: 'DND-2026-000207', route: 'RT-0301', custId: 5, custName: 'EuroTech Industrial B.V.', carrierId: 3, mode: TransportMode.AIR, veh: 'Flight ST-838 · Boeing 777F', orig: 27, dest: 9, cargo: 'Industrial PLC Controllers', wt: 3200, vol: 21, depOffsetHours: -168, durHours: 14, delayHours: 0, status: ShipmentStatus.DELIVERED },
+  { id: 120, num: 'DND-2026-000208', route: 'RT-0415', custId: 4, custName: 'PT Nusantara Retail', carrierId: 4, mode: TransportMode.AIR, veh: 'Flight AA-515 · Airbus A330-200F', orig: 27, dest: 29, cargo: 'Flagship Smartphone Launch Consignment', wt: 4100, vol: 26, depOffsetHours: -144, durHours: 16, delayHours: 0, status: ShipmentStatus.DELIVERED },
   { id: 121, num: 'DND-2026-000209', route: 'RT-0312', custId: 6, custName: 'PT IndoAgro Commodities', carrierId: 3, mode: TransportMode.AIR, veh: 'Flight ST-906 · Boeing 777F', orig: 7, dest: 10, cargo: 'Fresh Mangosteen & Vanilla Pods', wt: 5200, vol: 31, depOffsetHours: -120, durHours: 9, delayHours: 0, status: ShipmentStatus.DELIVERED },
-  { id: 122, num: 'DND-2026-000210', route: 'RT-0318', custId: 5, custName: 'EuroTech Industrial B.V.', carrierId: 4, mode: TransportMode.AIR, veh: 'Flight AA-204 · Airbus A330-200F', orig: 9, dest: 8, cargo: 'Cleanroom Robotics Grippers', wt: 2750, vol: 18, depOffsetHours: -90, durHours: 13, delayHours: 0, status: ShipmentStatus.DELIVERED },
-  { id: 123, num: 'DND-2026-000211', route: 'RT-0305', custId: 4, custName: 'PT Nusantara Retail', carrierId: 4, mode: TransportMode.AIR, veh: 'Flight AA-521 · Airbus A330-200F', orig: 8, dest: 7, cargo: 'Optical Eyewear & Medical Frames', wt: 1450, vol: 11, depOffsetHours: -60, durHours: 3, delayHours: 0, status: ShipmentStatus.DELIVERED },
+  { id: 122, num: 'DND-2026-000210', route: 'RT-0720', custId: 5, custName: 'EuroTech Industrial B.V.', carrierId: 4, mode: TransportMode.AIR, veh: 'Flight AA-204 · Airbus A330-200F', orig: 9, dest: 28, cargo: 'Cleanroom Robotics Grippers', wt: 2750, vol: 18, depOffsetHours: -90, durHours: 7, delayHours: 0, status: ShipmentStatus.DELIVERED },
+  { id: 123, num: 'DND-2026-000211', route: 'RT-0418', custId: 4, custName: 'PT Nusantara Retail', carrierId: 4, mode: TransportMode.AIR, veh: 'Flight AA-521 · Airbus A330-200F', orig: 29, dest: 9, cargo: 'Optical Eyewear & Medical Frames', wt: 2450, vol: 16, depOffsetHours: -60, durHours: 8, delayHours: 0, status: ShipmentStatus.DELIVERED },
   { id: 124, num: 'DND-2026-000212', route: 'RT-0312', custId: 6, custName: 'PT IndoAgro Commodities', carrierId: 3, mode: TransportMode.AIR, veh: 'Flight ST-912 · Boeing 777F', orig: 8, dest: 10, cargo: 'Roast Arabica Sample Lots', wt: 1800, vol: 12, depOffsetHours: -18, durHours: 8, delayHours: 0, status: ShipmentStatus.DELIVERED },
-  { id: 125, num: 'DND-2026-000213', route: 'RT-0301', custId: 5, custName: 'EuroTech Industrial B.V.', carrierId: 3, mode: TransportMode.AIR, veh: 'Flight ST-845 · Boeing 777F', orig: 7, dest: 9, cargo: 'Laser Interferometer Modules', wt: 2100, vol: 14, depOffsetHours: -6, durHours: 16, delayHours: 0, status: ShipmentStatus.IN_TRANSIT },
+  { id: 125, num: 'DND-2026-000213', route: 'RT-0722', custId: 5, custName: 'EuroTech Industrial B.V.', carrierId: 3, mode: TransportMode.AIR, veh: 'Flight ST-845 · Boeing 777F', orig: 28, dest: 9, cargo: 'Laser Interferometer Modules', wt: 2100, vol: 14, depOffsetHours: -5, durHours: 7, delayHours: 0, status: ShipmentStatus.IN_TRANSIT },
   { id: 126, num: 'DND-2026-000307', route: 'RT-0098', custId: 4, custName: 'PT Nusantara Retail', carrierId: 5, mode: TransportMode.ROAD, veh: 'B 9480 UXT · Mercedes Actros HGV Class 1', orig: 11, dest: 13, cargo: 'Retail Distribution Center Replenishment', wt: 17500, vol: 60, depOffsetHours: -160, durHours: 11, delayHours: 0, status: ShipmentStatus.DELIVERED },
-  { id: 127, num: 'DND-2026-000308', route: 'RT-0211', custId: 4, custName: 'PT Nusantara Retail', carrierId: 6, mode: TransportMode.ROAD, veh: 'B 9108 KJD · Ford Transit LCV Panel Van', orig: 1, dest: 12, cargo: 'Textiles & Home Linens', wt: 6800, vol: 30, depOffsetHours: -130, durHours: 6, delayHours: 0, status: ShipmentStatus.DELIVERED },
+  { id: 127, num: 'DND-2026-000308', route: 'RT-0420', custId: 4, custName: 'PT Nusantara Retail', carrierId: 6, mode: TransportMode.ROAD, veh: 'CA-9108-TR · Freightliner Cascadia Class 8', orig: 17, dest: 18, cargo: 'Air-to-Road West Coast Electronics Fulfillment', wt: 14800, vol: 46, depOffsetHours: -130, durHours: 4, delayHours: 0, status: ShipmentStatus.DELIVERED },
   { id: 128, num: 'DND-2026-000309', route: 'RT-0245', custId: 5, custName: 'EuroTech Industrial B.V.', carrierId: 7, mode: TransportMode.ROAD, veh: 'NL-91-BXR · Scania R450 HGV Class 2', orig: 5, dest: 14, cargo: 'Bonded Customs Container Drayage', wt: 22400, vol: 66, depOffsetHours: -110, durHours: 4, delayHours: 0, status: ShipmentStatus.DELIVERED },
-  { id: 129, num: 'DND-2026-000310', route: 'RT-0219', custId: 6, custName: 'PT IndoAgro Commodities', carrierId: 5, mode: TransportMode.ROAD, veh: 'L 8825 UJ · Hino 500 Ranger Heavy Box', orig: 13, dest: 2, cargo: 'Processed Cassava Starch Pallets', wt: 19200, vol: 58, depOffsetHours: -84, durHours: 8, delayHours: 0, status: ShipmentStatus.DELIVERED },
+  { id: 129, num: 'DND-2026-000310', route: 'RT-0520', custId: 6, custName: 'PT IndoAgro Commodities', carrierId: 5, mode: TransportMode.ROAD, veh: 'VIC-825-HD · Kenworth T610 B-Double', orig: 19, dest: 22, cargo: 'Melbourne-to-Sydney Interstate Cold Chain Linehaul', wt: 23200, vol: 68, depOffsetHours: -84, durHours: 11, delayHours: 0, status: ShipmentStatus.DELIVERED },
   { id: 130, num: 'DND-2026-000311', route: 'RT-0098', custId: 4, custName: 'PT Nusantara Retail', carrierId: 5, mode: TransportMode.ROAD, veh: 'B 9485 UXT · Mercedes Actros HGV Class 1', orig: 11, dest: 13, cargo: 'Bottled Beverages & Dry Goods', wt: 18900, vol: 64, depOffsetHours: -52, durHours: 11, delayHours: 0, status: ShipmentStatus.DELIVERED },
   { id: 131, num: 'DND-2026-000312', route: 'RT-0211', custId: 6, custName: 'PT IndoAgro Commodities', carrierId: 6, mode: TransportMode.ROAD, veh: 'D 8192 VBN · Isuzu Giga Wingbox', orig: 12, dest: 1, cargo: 'West Java Highland Tea Chests', wt: 14200, vol: 50, depOffsetHours: -28, durHours: 6, delayHours: 0, status: ShipmentStatus.DELIVERED },
-  { id: 132, num: 'DND-2026-000313', route: 'RT-0245', custId: 5, custName: 'EuroTech Industrial B.V.', carrierId: 7, mode: TransportMode.ROAD, veh: 'NL-55-VTR · DAF XF 480 Euro 6', orig: 14, dest: 5, cargo: 'Export Machinery Crates to Maasvlakte', wt: 20100, vol: 61, depOffsetHours: -8, durHours: 12, delayHours: 0, status: ShipmentStatus.IN_TRANSIT },
+  { id: 132, num: 'DND-2026-000313', route: 'RT-0245', custId: 5, custName: 'EuroTech Industrial B.V.', carrierId: 7, mode: TransportMode.ROAD, veh: 'NL-55-VTR · DAF XF 480 Euro 6', orig: 14, dest: 6, cargo: 'Continental Heavy Machinery Haulage to Hamburg', wt: 20100, vol: 61, depOffsetHours: -8, durHours: 12, delayHours: 0, status: ShipmentStatus.IN_TRANSIT },
   { id: 133, num: 'DND-2026-000314', route: 'RT-0098', custId: 4, custName: 'PT Nusantara Retail', carrierId: 5, mode: TransportMode.ROAD, veh: 'B 9499 UXT · Mercedes Actros HGV Class 1', orig: 11, dest: 2, cargo: 'Inter-Depot Fast Moving Consumer Goods', wt: 19600, vol: 65, depOffsetHours: -4, durHours: 14, delayHours: 0, status: ShipmentStatus.IN_TRANSIT },
   { id: 134, num: 'DND-2026-000315', route: 'RT-0219', custId: 6, custName: 'PT IndoAgro Commodities', carrierId: 6, mode: TransportMode.ROAD, veh: 'L 8890 UJ · Hino 500 Ranger Heavy Box', orig: 13, dest: 11, cargo: 'Packaged Nutmeg & Clove Export Sacks', wt: 15800, vol: 52, depOffsetHours: 12, durHours: 10, delayHours: 0, status: ShipmentStatus.BOOKED },
+  // --- TRANS-PACIFIC & NORTH AMERICA CORRIDORS ---
+  { id: 135, num: 'DND-2026-000135', route: 'RT-0401', custId: 4, custName: 'PT Nusantara Retail', carrierId: 2, mode: TransportMode.SEA, veh: 'MV Pacific Horizon · Voy 512E', orig: 1, dest: 15, cargo: 'Smart Home Appliances & LED Display Panels', wt: 64000, vol: 168, depOffsetHours: -340, durHours: 350, delayHours: 24, status: ShipmentStatus.IN_TRANSIT },
+  { id: 136, num: 'DND-2026-000136', route: 'RT-0405', custId: 5, custName: 'EuroTech Industrial B.V.', carrierId: 1, mode: TransportMode.SEA, veh: 'MV Trans-Pacific Star · Voy 209E', orig: 3, dest: 16, cargo: 'CNC Assembly Frames & Hydraulic Presses', wt: 71500, vol: 182, depOffsetHours: -290, durHours: 360, delayHours: 0, status: ShipmentStatus.IN_TRANSIT },
+  { id: 137, num: 'DND-2026-000214', route: 'RT-0410', custId: 5, custName: 'EuroTech Industrial B.V.', carrierId: 3, mode: TransportMode.AIR, veh: 'Flight ST-702 · Boeing 777F', orig: 7, dest: 17, cargo: 'High-Density Server Motherboards & GPU Racks', wt: 5600, vol: 32, depOffsetHours: -20, durHours: 18, delayHours: 21, status: ShipmentStatus.IN_TRANSIT },
+  { id: 138, num: 'DND-2026-000215', route: 'RT-0412', custId: 4, custName: 'PT Nusantara Retail', carrierId: 4, mode: TransportMode.AIR, veh: 'Flight AA-618 · Airbus A330-200F', orig: 8, dest: 17, cargo: 'Apparel Capsule Collection & Footwear Samples', wt: 3800, vol: 24, depOffsetHours: -96, durHours: 17, delayHours: 0, status: ShipmentStatus.DELIVERED },
+  { id: 139, num: 'DND-2026-000316', route: 'RT-0420', custId: 4, custName: 'PT Nusantara Retail', carrierId: 7, mode: TransportMode.ROAD, veh: 'CA-94812-TR · Freightliner Cascadia Class 8', orig: 15, dest: 18, cargo: 'Transloaded Consumer Electronics Intermodal Drayage', wt: 21800, vol: 68, depOffsetHours: -10, durHours: 6, delayHours: 12, status: ShipmentStatus.IN_TRANSIT },
+  // --- OCEANIA & AUSTRALIA CORRIDORS ---
+  { id: 140, num: 'DND-2026-000137', route: 'RT-0501', custId: 6, custName: 'PT IndoAgro Commodities', carrierId: 1, mode: TransportMode.SEA, veh: 'MV Southern Cross · Voy 318S', orig: 2, dest: 19, cargo: 'Kiln-Dried Merbau Timber & Plantation Teak', wt: 58400, vol: 152, depOffsetHours: -180, durHours: 175, delayHours: 28, status: ShipmentStatus.IN_TRANSIT },
+  { id: 141, num: 'DND-2026-000138', route: 'RT-0504', custId: 4, custName: 'PT Nusantara Retail', carrierId: 2, mode: TransportMode.SEA, veh: 'MV Tasman Trader · Voy 104S', orig: 1, dest: 20, cargo: 'Packaged Organic Coconut Water & Retail Foods', wt: 44200, vol: 118, depOffsetHours: -240, durHours: 190, delayHours: 8, status: ShipmentStatus.DELIVERED },
+  { id: 142, num: 'DND-2026-000216', route: 'RT-0510', custId: 6, custName: 'PT IndoAgro Commodities', carrierId: 3, mode: TransportMode.AIR, veh: 'Flight ST-918 · Boeing 777F', orig: 8, dest: 21, cargo: 'Cold-Chain Barramundi Fillets & King Prawns', wt: 4900, vol: 29, depOffsetHours: -14, durHours: 8, delayHours: 26, status: ShipmentStatus.IN_TRANSIT },
+  { id: 143, num: 'DND-2026-000317', route: 'RT-0520', custId: 6, custName: 'PT IndoAgro Commodities', carrierId: 5, mode: TransportMode.ROAD, veh: 'NSW-882-HV · Kenworth T610 B-Double', orig: 20, dest: 22, cargo: 'Port Botany Container Drayage to Western Sydney Hub', wt: 24600, vol: 74, depOffsetHours: -48, durHours: 4, delayHours: 0, status: ShipmentStatus.DELIVERED },
+  { id: 144, num: 'DND-2026-000139', route: 'RT-0401', custId: 5, custName: 'EuroTech Industrial B.V.', carrierId: 2, mode: TransportMode.SEA, veh: 'MV Pacific Horizon · Voy 510E', orig: 1, dest: 15, cargo: 'Industrial Transformer Cores & Copper Coils', wt: 69000, vol: 164, depOffsetHours: -520, durHours: 348, delayHours: 0, status: ShipmentStatus.DELIVERED },
 ];
 
 const ANCHOR_MS = new Date('2026-11-05T03:30:00Z').getTime();
@@ -1386,6 +1551,103 @@ export const SEED_EXCEPTIONS: ShipmentException[] = [
     reported_by_user_id: 2,
     reported_by_name: 'Budiono Siregar',
   },
+  // --- TRANS-PACIFIC & OCEANIA EXCEPTIONS ---
+  {
+    id: 507,
+    shipment_id: 135,
+    shipment_number: 'DND-2026-000135',
+    exception_type: ExceptionType.WEATHER_DELAY,
+    severity: SeverityLevel.HIGH,
+    status: ExceptionStatus.OPEN,
+    title: 'North Pacific Extra-Tropical Cyclone Swell Avoidance',
+    description:
+      'MV Pacific Horizon diverted 180 NM south of Great Circle track to avoid 9-meter swell en route to Port of Los Angeles (USLAX), adding +24h to ETA.',
+    resolution_notes: null,
+    detected_at: '2026-11-04T06:30:00Z',
+    resolved_at: null,
+    reported_by_user_id: 2,
+    reported_by_name: 'Budiono Siregar',
+  },
+  {
+    id: 508,
+    shipment_id: 137,
+    shipment_number: 'DND-2026-000214',
+    exception_type: ExceptionType.WEATHER_DELAY,
+    severity: SeverityLevel.MEDIUM,
+    status: ExceptionStatus.INVESTIGATING,
+    title: 'Trans-Pacific Jetstream Headwind & Tech-Stop De-Icing Delay',
+    description:
+      'Flight ST-702 experienced severe upper-level headwinds and mandatory de-icing queue at refueling stop en route to LAX Cargo Terminal (+21h delay).',
+    resolution_notes: 'Flight airborne on final leg to Los Angeles (LAX).',
+    detected_at: '2026-11-04T19:45:00Z',
+    resolved_at: null,
+    reported_by_user_id: 3,
+    reported_by_name: 'Siti Rahmawati',
+  },
+  {
+    id: 509,
+    shipment_id: 140,
+    shipment_number: 'DND-2026-000137',
+    exception_type: ExceptionType.DOCUMENTATION_ISSUE,
+    severity: SeverityLevel.HIGH,
+    status: ExceptionStatus.OPEN,
+    title: 'Australian Biosecurity BICON Methyl Bromide Fumigation Endorsement',
+    description:
+      'Department of Agriculture, Fisheries and Forestry (DAFF) at Port of Melbourne (AUMEL) requested re-issuance of ISPM-15 timber treatment certificate with accredited laboratory stamp (+28h delay).',
+    resolution_notes: null,
+    detected_at: '2026-11-04T08:00:00Z',
+    resolved_at: null,
+    reported_by_user_id: 3,
+    reported_by_name: 'Siti Rahmawati',
+  },
+  {
+    id: 510,
+    shipment_id: 142,
+    shipment_number: 'DND-2026-000216',
+    exception_type: ExceptionType.DOCUMENTATION_ISSUE,
+    severity: SeverityLevel.HIGH,
+    status: ExceptionStatus.INVESTIGATING,
+    title: 'AANZFTA Certificate of Origin Cold-Chain Health Attestation Mismatch',
+    description:
+      'Melbourne Tullamarine Airfreight Quarantine flagged discrepancy between Master Air Waybill weight and veterinary health certificate lot numbers (+26h delay).',
+    resolution_notes: 'Amended digital health certificate transmitted via Single Window.',
+    detected_at: '2026-11-04T21:15:00Z',
+    resolved_at: null,
+    reported_by_user_id: 2,
+    reported_by_name: 'Budiono Siregar',
+  },
+  {
+    id: 511,
+    shipment_id: 141,
+    shipment_number: 'DND-2026-000138',
+    exception_type: ExceptionType.DOCUMENTATION_ISSUE,
+    severity: SeverityLevel.MEDIUM,
+    status: ExceptionStatus.RESOLVED,
+    title: 'Port Botany Sea Cargo Automation (SCA) Manifest Consignee ABN Update',
+    description:
+      'Australian Border Force Integrated Cargo System (ICS) required updated importer ABN on electronic Sea Waybill prior to container release at Port Botany (AUSYD).',
+    resolution_notes: 'Customs broker submitted EDI amendment; container cleared in 7.5 hours.',
+    detected_at: '2026-11-02T01:00:00Z',
+    resolved_at: '2026-11-02T08:30:00Z',
+    reported_by_user_id: 3,
+    reported_by_name: 'Siti Rahmawati',
+  },
+  {
+    id: 512,
+    shipment_id: 121,
+    shipment_number: 'DND-2026-000209',
+    exception_type: ExceptionType.DOCUMENTATION_ISSUE,
+    severity: SeverityLevel.LOW,
+    status: ExceptionStatus.RESOLVED,
+    title: 'Sydney Airport (SYD) AQIS Phytosanitary Export Declaration Re-Verification',
+    description:
+      'Electronic phytosanitary attachment required re-upload in PDF/A format for Sydney Kingsford Smith Quarantine clearance.',
+    resolution_notes: 'Verified and cleared by AQIS duty officer within 9.0 hours.',
+    detected_at: '2026-10-31T06:00:00Z',
+    resolved_at: '2026-10-31T15:00:00Z',
+    reported_by_user_id: 2,
+    reported_by_name: 'Budiono Siregar',
+  },
 ];
 
 export const SEED_NOTIFICATIONS: NotificationItem[] = [
@@ -1395,35 +1657,35 @@ export const SEED_NOTIFICATIONS: NotificationItem[] = [
     shipment_id: 103,
     shipment_number: 'DND-2026-000103',
     type: 'EXCEPTION_OPENED',
-    title: 'Customs Hold Reported on DND-2026-000103',
+    title: 'Customs Hold Reported on DND-2026-000103 (Hamburg DEHAM)',
     message:
-      'HIGH severity CUSTOMS_HOLD opened at Port of Hamburg. Delay is +44h (exceeds Group A 12h threshold).',
+      'HIGH severity CUSTOMS_HOLD opened at Port of Hamburg. Delay is +44h for EU phytosanitary container verification.',
     is_read: false,
     created_at: '2026-11-03T09:16:00Z',
   },
   {
     id: 902,
     user_id: 4, // PT Nusantara Retail
-    shipment_id: 101,
-    shipment_number: 'DND-2026-000101',
+    shipment_id: 135,
+    shipment_number: 'DND-2026-000135',
     type: 'DELAY_DETECTED',
-    title: 'Delay Threshold Exceeded: DND-2026-000101 (+16h)',
+    title: 'North Pacific Weather Delay: DND-2026-000135 (+24h to Los Angeles)',
     message:
-      'Estimated arrival revised to 05 Nov 2026, 22:00 UTC (+16.0h delta vs 12h Group A threshold).',
+      'MV Pacific Horizon en route to Port of Los Angeles (USLAX) delayed by +24h due to North Pacific cyclone swell avoidance.',
     is_read: false,
-    created_at: '2026-11-04T14:21:00Z',
+    created_at: '2026-11-04T06:32:00Z',
   },
   {
     id: 903,
-    user_id: 5, // EuroTech Industrial B.V.
-    shipment_id: 201,
-    shipment_number: 'DND-2026-000201',
-    type: 'DELAY_DETECTED',
-    title: 'Air Freight Weather Delay: DND-2026-000201 (+15h)',
+    user_id: 6, // PT IndoAgro Commodities
+    shipment_id: 140,
+    shipment_number: 'DND-2026-000137',
+    type: 'EXCEPTION_OPENED',
+    title: 'Australia Biosecurity Documentation Issue: DND-2026-000137 (+28h)',
     message:
-      'Flight ST-842 held due to Schiphol fog slot restrictions. Revised ETA: 05 Nov 2026, 23:00 UTC.',
+      'DOCUMENTATION_ISSUE logged at Port of Melbourne (AUMEL) for ISPM-15 fumigation endorsement (+28h delay).',
     is_read: false,
-    created_at: '2026-11-05T01:12:00Z',
+    created_at: '2026-11-04T08:05:00Z',
   },
   {
     id: 904,
@@ -1431,9 +1693,9 @@ export const SEED_NOTIFICATIONS: NotificationItem[] = [
     shipment_id: 302,
     shipment_number: 'DND-2026-000302',
     type: 'STATUS_CHANGED',
-    title: 'Shipment Delivered: DND-2026-000302',
+    title: 'Shipment Delivered: DND-2026-000302 (Ontario USA Depot)',
     message:
-      'Road consignment arrived at Bandung Gedebage Inland Depot ahead of schedule.',
+      'Intermodal road consignment from Port of Los Angeles arrived at Ontario Inland Depot ahead of schedule.',
     is_read: true,
     created_at: '2026-11-04T11:46:00Z',
   },
@@ -1448,7 +1710,7 @@ export const SEED_AUDIT_LOGS: AuditLogEntry[] = [
     action: 'STATUS_TRANSITION',
     entity_type: 'Shipment',
     entity_id: 'DND-2026-000102',
-    summary: 'Verified vessel departure for DND-2026-000102 aboard MV Northern Meridian from Port of Singapore (SGSIN) en route to Rotterdam (NLRTM).',
+    summary: 'Verified vessel departure for DND-2026-000102 aboard MV Pacific Meridian from Port of Singapore (SGSIN) en route to Port of Los Angeles (USLAX).',
     old_values: { status: 'PICKED_UP' },
     new_values: { status: 'IN_TRANSIT', event_type: 'DEPARTED_PORT' },
     created_at: '2026-11-05T06:40:00Z',
@@ -1460,10 +1722,10 @@ export const SEED_AUDIT_LOGS: AuditLogEntry[] = [
     actor_role: UserRole.OPERATOR,
     action: 'EXCEPTION_REPORTED',
     entity_type: 'ShipmentException',
-    entity_id: 'DND-2026-000201',
-    summary: 'Logged MEDIUM severity WEATHER_DELAY on Air Freight DND-2026-000201 due to Schiphol (AMS) low-visibility runway slot restriction (+15h ETA revision).',
-    old_values: { estimated_arrival: '2026-11-05T08:00:00Z' },
-    new_values: { exception_type: 'WEATHER_DELAY', severity: 'MEDIUM', estimated_arrival: '2026-11-05T23:00:00Z' },
+    entity_id: 'DND-2026-000137',
+    summary: 'Logged HIGH severity DOCUMENTATION_ISSUE on DND-2026-000137 at Port of Melbourne (AUMEL) for Australian biosecurity fumigation certificate endorsement (+28h ETA delta).',
+    old_values: { estimated_arrival: '2026-11-04T22:30:00Z' },
+    new_values: { exception_type: 'DOCUMENTATION_ISSUE', severity: 'HIGH', delay_hours: 28 },
     created_at: '2026-11-05T01:10:00Z',
   },
   {
@@ -1471,12 +1733,12 @@ export const SEED_AUDIT_LOGS: AuditLogEntry[] = [
     actor_user_id: 2,
     actor_name: 'Budiono Siregar',
     actor_role: UserRole.OPERATOR,
-    action: 'STATUS_TRANSITION',
-    entity_type: 'Shipment',
-    entity_id: 'DND-2026-000301',
-    summary: 'Transitioned overland road freight DND-2026-000301 from PICKED_UP to IN_TRANSIT via DEPARTED_DEPOT checkpoint at Cikarang Dry Port.',
-    old_values: { status: 'PICKED_UP' },
-    new_values: { status: 'IN_TRANSIT', event_type: 'DEPARTED_DEPOT' },
+    action: 'EXCEPTION_REPORTED',
+    entity_type: 'ShipmentException',
+    entity_id: 'DND-2026-000135',
+    summary: 'Logged HIGH severity WEATHER_DELAY on DND-2026-000135 en route to Port of Los Angeles (USLAX) due to North Pacific cyclone swell avoidance (+24h ETA delta).',
+    old_values: { delay_hours: 0 },
+    new_values: { exception_type: 'WEATHER_DELAY', severity: 'HIGH', delay_hours: 24 },
     created_at: '2026-11-04T20:05:00Z',
   },
   {
@@ -1487,7 +1749,7 @@ export const SEED_AUDIT_LOGS: AuditLogEntry[] = [
     action: 'EXCEPTION_REPORTED',
     entity_type: 'ShipmentException',
     entity_id: 'DND-2026-000101',
-    summary: 'Flagged MEDIUM severity CUSTOMS_HOLD on DND-2026-000101 for Rotterdam ENS Entry Summary Declaration HS-Code verification (+16h ETA delta).',
+    summary: 'Flagged MEDIUM severity CUSTOMS_HOLD on DND-2026-000101 for Rotterdam (NLRTM) ENS Entry Summary Declaration HS-Code verification (+16h ETA delta).',
     old_values: { estimated_arrival: '2026-11-05T06:00:00Z' },
     new_values: { exception_type: 'CUSTOMS_HOLD', severity: 'MEDIUM', estimated_arrival: '2026-11-05T22:00:00Z' },
     created_at: '2026-11-04T14:20:00Z',
@@ -1507,28 +1769,31 @@ export const SEED_AUDIT_LOGS: AuditLogEntry[] = [
   },
   {
     id: 702,
-    actor_user_id: 2,
-    actor_name: 'Budiono Siregar',
+    actor_user_id: 3,
+    actor_name: 'Siti Rahmawati',
     actor_role: UserRole.OPERATOR,
     action: 'EXCEPTION_RESOLVED',
     entity_type: 'ShipmentException',
-    entity_id: 'DND-2026-000105',
-    summary: 'Resolved outer shrink-wrap packaging exception on DND-2026-000105 after discharge inspection and signed clean Proof of Delivery.',
+    entity_id: 'DND-2026-000138',
+    summary: 'Resolved Port Botany Sydney (AUSYD) DOCUMENTATION_ISSUE on DND-2026-000138 in 7.5 hours after electronic Sea Waybill ABN amendment.',
     old_values: { status: 'OPEN' },
-    new_values: { status: 'RESOLVED', resolution_notes: 'Repacked and signed off clean on POD.' },
-    created_at: '2026-10-29T15:30:00Z',
+    new_values: { status: 'RESOLVED', resolution_hours: 7.5 },
+    created_at: '2026-11-02T08:30:00Z',
   },
   {
     id: 701,
     actor_user_id: 1,
     actor_name: 'Rendra Wijaya',
     actor_role: UserRole.ADMIN,
-    action: 'GROUP_CONFIG_INITIALIZED',
+    action: 'GLOBAL_CONFIG_INITIALIZED',
     entity_type: 'Settings',
-    entity_id: 'group_a_config',
-    summary: 'Configured Group A parameters: Route Southeast Asia → Europe, Delay Threshold = 12h, Main Exception = CUSTOMS_HOLD.',
+    entity_id: 'worldwide_network_config',
+    summary: 'Initialized DND Atlas Worldwide Multimodal Network covering Asia-Pacific, Europe, North America, South America, Middle East, and Oceania corridors.',
     old_values: null,
-    new_values: { delay_threshold_hours: 12, main_exception_focus: 'CUSTOMS_HOLD' },
+    new_values: {
+      network_scope: 'Worldwide (Asia · Europe · Americas · Middle East · Oceania)',
+      delay_threshold_hours: 12,
+    },
     created_at: '2026-10-01T08:00:00Z',
   },
 ];

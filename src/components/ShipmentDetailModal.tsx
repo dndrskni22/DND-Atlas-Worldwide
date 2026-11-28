@@ -16,6 +16,14 @@ import {
   WeatherSnapshot,
 } from '../types/cargotrace';
 import {
+  Language,
+  translateEventType,
+  translateExceptionType,
+  translateLocationType,
+  translateMode,
+  translateShipmentStatus,
+} from '../i18n/translations';
+import {
   AuthPolicyService,
   EtaService,
   MODE_EVENT_VOCABULARY,
@@ -48,6 +56,7 @@ interface ShipmentDetailModalProps {
   events: TrackingEvent[];
   exceptions: ShipmentException[];
   settings: GroupConfigSettings;
+  lang?: Language;
   onClose: () => void;
   onAddTrackingEvent: (payload: {
     shipment_id: number;
@@ -81,6 +90,7 @@ export const ShipmentDetailModal: React.FC<ShipmentDetailModalProps> = ({
   events,
   exceptions,
   settings,
+  lang = 'id',
   onClose,
   onAddTrackingEvent,
   onReportException,
@@ -110,6 +120,8 @@ export const ShipmentDetailModal: React.FC<ShipmentDetailModalProps> = ({
   const [excTitle, setExcTitle] = useState('');
   const [excDesc, setExcDesc] = useState('');
   const [excDelayAdded, setExcDelayAdded] = useState<number>(14);
+
+  const isId = lang === 'id';
 
   useEffect(() => {
     if (!shipment) return;
@@ -149,7 +161,9 @@ export const ShipmentDetailModal: React.FC<ShipmentDetailModalProps> = ({
         <div className="bg-white border border-[#FD6E88] rounded-xl max-w-md w-full p-6 shadow-xl">
           <div className="flex items-center gap-2 text-[#9F1D35] font-bold text-base mb-2">
             <AlertTriangle className="w-5 h-5 text-[#FD6E88]" />
-            <span>Access Denied ({viewAuth.status_code})</span>
+            <span>
+              {isId ? 'Akses Ditolak' : 'Access Denied'} ({viewAuth.status_code})
+            </span>
           </div>
           <p className="text-[13.5px] text-[#1E293B] mb-4">{viewAuth.message}</p>
           <button
@@ -157,7 +171,7 @@ export const ShipmentDetailModal: React.FC<ShipmentDetailModalProps> = ({
             onClick={onClose}
             className="px-4 py-2 bg-[#072D59] text-white rounded-lg text-xs font-semibold"
           >
-            Close
+            {isId ? 'Tutup' : 'Close'}
           </button>
         </div>
       </div>
@@ -282,10 +296,10 @@ export const ShipmentDetailModal: React.FC<ShipmentDetailModalProps> = ({
       aria-label={`Shipment details for ${shipment.shipment_number}`}
     >
       <div className="bg-[#F8FAFC] w-full max-w-[780px] h-full flex flex-col border-l border-[#DCE4F0] shadow-2xl overflow-hidden">
-        {/* Top Modal Header — Clean single-status layout without badge sandwiches */}
+        {/* Top Modal Header */}
         <div className="px-6 py-4 bg-white border-b border-[#DCE4F0] flex items-start justify-between gap-4">
           <div className="flex items-start gap-3.5">
-            <ModeIconChip mode={shipment.mode} size="lg" />
+            <ModeIconChip mode={shipment.mode} size="lg" lang={lang} />
             <div>
               <div className="flex flex-wrap items-center gap-2.5">
                 <h2 className="text-[19px] font-bold text-[#072D59] font-mono-tabular tracking-tight">
@@ -294,6 +308,7 @@ export const ShipmentDetailModal: React.FC<ShipmentDetailModalProps> = ({
                 <ShipmentStatusBadge
                   status={shipment.status}
                   isDelayed={isDelayedActive}
+                  lang={lang}
                 />
               </div>
               <div className="text-[13px] text-[#475569] mt-1 flex flex-wrap items-center gap-1.5">
@@ -318,7 +333,7 @@ export const ShipmentDetailModal: React.FC<ShipmentDetailModalProps> = ({
           </button>
         </div>
 
-        {/* Clean Lifecycle Progress Bar (No numbered circles or all-caps shouting) */}
+        {/* Clean Lifecycle Progress Bar */}
         <div className="px-6 py-3 bg-white border-b border-[#DCE4F0]">
           <div className="grid grid-cols-5 gap-2">
             {lifecycleStages.map((stage, idx) => {
@@ -346,7 +361,7 @@ export const ShipmentDetailModal: React.FC<ShipmentDetailModalProps> = ({
                         : 'text-[#64748B]'
                     }`}
                   >
-                    {formatEnumLabel(stage)}
+                    {translateShipmentStatus(stage, lang)}
                   </div>
                 </div>
               );
@@ -371,25 +386,29 @@ export const ShipmentDetailModal: React.FC<ShipmentDetailModalProps> = ({
                 onClick={() => setFormFeedback(null)}
                 className="text-xs font-semibold underline ml-3"
               >
-                Dismiss
+                {isId ? 'Tutup' : 'Dismiss'}
               </button>
             </div>
           )}
 
-          {/* Flat Schedule & Arrival Strip (No nested cards within cards) */}
+          {/* Flat Schedule & Arrival Strip */}
           <div className="bg-white border border-[#DCE4F0] rounded-xl overflow-hidden">
             <div className="px-4 py-2.5 bg-[#F8FAFC] border-b border-[#DCE4F0] flex flex-wrap items-center justify-between gap-2">
               <span className="text-[12.5px] font-bold text-[#072D59]">
-                Arrival Schedule & Variance
+                {isId ? 'Jadwal Kedatangan & Selisih Waktu (ETA)' : 'Arrival Schedule & Variance'}
               </span>
               <span className="text-[12px] text-[#475569] tabular-nums">
-                Alert threshold: {settings.delay_threshold_hours}h ({settings.group_name})
+                {isId
+                  ? `Batas peringatan SLA: ${settings.delay_threshold_hours} jam (${settings.group_name})`
+                  : `Alert threshold: ${settings.delay_threshold_hours}h (${settings.group_name})`}
               </span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-[#DCE4F0]">
               <div className="p-3.5">
-                <div className="text-[11.5px] text-[#475569]">Scheduled Arrival</div>
+                <div className="text-[11.5px] text-[#475569]">
+                  {isId ? 'Jadwal Tiba Awal' : 'Scheduled Arrival'}
+                </div>
                 <div className="text-[13.5px] font-semibold text-[#072D59] tabular-nums mt-0.5">
                   {new Date(shipment.expected_arrival).toLocaleString('en-GB', {
                     day: '2-digit',
@@ -402,7 +421,9 @@ export const ShipmentDetailModal: React.FC<ShipmentDetailModalProps> = ({
               </div>
 
               <div className="p-3.5">
-                <div className="text-[11.5px] text-[#475569]">Estimated Arrival (ETA)</div>
+                <div className="text-[11.5px] text-[#475569]">
+                  {isId ? 'Estimasi Tiba (ETA)' : 'Estimated Arrival (ETA)'}
+                </div>
                 <div className="text-[13.5px] font-semibold text-[#072D59] tabular-nums mt-0.5">
                   {new Date(shipment.estimated_arrival).toLocaleString('en-GB', {
                     day: '2-digit',
@@ -415,20 +436,28 @@ export const ShipmentDetailModal: React.FC<ShipmentDetailModalProps> = ({
               </div>
 
               <div className="p-3.5">
-                <div className="text-[11.5px] text-[#475569]">Schedule Variance</div>
+                <div className="text-[11.5px] text-[#475569]">
+                  {isId ? 'Selisih Jadwal' : 'Schedule Variance'}
+                </div>
                 <div
                   className={`text-[13.5px] font-bold tabular-nums mt-0.5 ${
                     etaEval.delay_hours > 0 ? 'text-[#9F1D35]' : 'text-[#2B6E51]'
                   }`}
                 >
                   {etaEval.delay_hours > 0
-                    ? `+${etaEval.delay_hours} hours`
+                    ? isId
+                      ? `+${etaEval.delay_hours} jam`
+                      : `+${etaEval.delay_hours} hours`
+                    : isId
+                    ? 'Tepat Jadwal'
                     : 'On schedule'}
                 </div>
               </div>
 
               <div className="p-3.5">
-                <div className="text-[11.5px] text-[#475569]">Last Recorded Checkpoint</div>
+                <div className="text-[11.5px] text-[#475569]">
+                  {isId ? 'Titik Lokasi Terakhir' : 'Last Recorded Checkpoint'}
+                </div>
                 <div className="text-[13px] font-semibold text-[#1E293B] mt-0.5 leading-snug">
                   {latestEvent ? latestEvent.location_name : origin?.name}
                 </div>
@@ -448,64 +477,70 @@ export const ShipmentDetailModal: React.FC<ShipmentDetailModalProps> = ({
 
           {/* 2-Column Waybill Details & Destination Weather */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
-            {/* Waybill & Transport Details — Clean left-aligned definition list */}
+            {/* Waybill & Transport Details */}
             <div className="bg-white border border-[#DCE4F0] rounded-xl p-4">
               <h3 className="text-[13px] font-bold text-[#072D59] pb-2.5 mb-3 border-b border-[#EEF2F8]">
-                Waybill & Transport Details
+                {isId ? 'Detail Resi & Transportasi' : 'Waybill & Transport Details'}
               </h3>
               <dl className="grid grid-cols-[120px_1fr] gap-y-2.5 gap-x-3 text-[13px]">
-                <dt className="text-[#475569]">Customer</dt>
+                <dt className="text-[#475569]">{isId ? 'Pelanggan' : 'Customer'}</dt>
                 <dd className="font-semibold text-[#1E293B]">{shipment.customer_name}</dd>
 
-                <dt className="text-[#475569]">Carrier</dt>
+                <dt className="text-[#475569]">{isId ? 'Maskapai' : 'Carrier'}</dt>
                 <dd className="font-semibold text-[#1E293B]">
-                  {carrier?.name} · {formatEnumLabel(shipment.mode)}
+                  {carrier?.name} · {translateMode(shipment.mode, lang)}
                 </dd>
 
-                <dt className="text-[#475569]">Vessel / Vehicle</dt>
+                <dt className="text-[#475569]">{isId ? 'Armada / Kapal' : 'Vessel / Vehicle'}</dt>
                 <dd className="font-medium text-[#072D59] tabular-nums">
                   {shipment.vehicle_ref}
                 </dd>
 
-                <dt className="text-[#475569]">Origin Hub</dt>
+                <dt className="text-[#475569]">{isId ? 'Hub Asal' : 'Origin Hub'}</dt>
                 <dd className="text-[#1E293B]">
                   {origin?.name}{' '}
                   <span className="text-[#475569] text-[12px]">
-                    ({origin ? formatEnumLabel(origin.type) : ''})
+                    ({origin ? translateLocationType(origin.type, lang) : ''})
                   </span>
                 </dd>
 
-                <dt className="text-[#475569]">Destination Hub</dt>
+                <dt className="text-[#475569]">{isId ? 'Hub Tujuan' : 'Destination Hub'}</dt>
                 <dd className="text-[#1E293B]">
                   {destination?.name}{' '}
                   <span className="text-[#475569] text-[12px]">
-                    ({destination ? formatEnumLabel(destination.type) : ''})
+                    ({destination ? translateLocationType(destination.type, lang) : ''})
                   </span>
                 </dd>
 
-                <dt className="text-[#475569]">Corridor Distance</dt>
+                <dt className="text-[#475569]">{isId ? 'Jarak Rute' : 'Corridor Distance'}</dt>
                 <dd className="text-[#1E293B] tabular-nums">
                   {distanceKm.toLocaleString()} km ({distanceMi.toLocaleString()} mi)
                 </dd>
               </dl>
             </div>
 
-            {/* Destination Hub Weather — Flat layout without nested sub-cards */}
+            {/* Destination Hub Weather */}
             <div className="bg-white border border-[#DCE4F0] rounded-xl p-4 flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between pb-2.5 mb-3 border-b border-[#EEF2F8]">
                   <div className="flex items-center gap-1.5 text-[13px] font-bold text-[#072D59]">
                     <CloudSun className="w-4 h-4 text-[#072D59]" />
-                    <span>Destination Hub Weather</span>
+                    <span>{isId ? 'Cuaca Hub Tujuan' : 'Destination Hub Weather'}</span>
                   </div>
                   <span className="text-[11.5px] text-[#475569]">
-                    {weather?.source.includes('Open-Meteo') ? 'Open-Meteo Live' : 'Cached Telemetry'}
+                    {weather?.source.includes('Open-Meteo')
+                      ? 'Open-Meteo Live'
+                      : isId
+                      ? 'Telemetri Tersimpan'
+                      : 'Cached Telemetry'}
                   </span>
                 </div>
 
                 {weatherLoading ? (
                   <div className="py-6 text-[13px] text-[#475569]">
-                    Loading destination weather conditions...
+                    {isId
+                      ? 'Memuat kondisi cuaca lokasi tujuan...'
+                      : 'Loading destination weather conditions...'}
                   </div>
                 ) : weather ? (
                   <div className="space-y-3">
@@ -514,25 +549,32 @@ export const ShipmentDetailModal: React.FC<ShipmentDetailModalProps> = ({
                         {destination?.name} ({destination?.city})
                       </div>
                       <div className="text-[12.5px] text-[#475569] mt-0.5">
-                        Condition: <strong className="text-[#072D59]">{weather.condition_label}</strong>
+                        {isId ? 'Kondisi:' : 'Condition:'}{' '}
+                        <strong className="text-[#072D59]">{weather.condition_label}</strong>
                       </div>
                     </div>
 
                     <div className="grid grid-cols-3 divide-x divide-[#DCE4F0] pt-2 border-t border-[#EEF2F8] tabular-nums">
                       <div className="pr-3">
-                        <div className="text-[11px] text-[#475569]">Temperature</div>
+                        <div className="text-[11px] text-[#475569]">
+                          {isId ? 'Suhu Udara' : 'Temperature'}
+                        </div>
                         <div className="text-[17px] font-bold text-[#072D59] mt-0.5">
                           {weather.temperature_c}°C
                         </div>
                       </div>
                       <div className="px-3">
-                        <div className="text-[11px] text-[#475569]">Wind Speed</div>
+                        <div className="text-[11px] text-[#475569]">
+                          {isId ? 'Kecepatan Angin' : 'Wind Speed'}
+                        </div>
                         <div className="text-[17px] font-bold text-[#072D59] mt-0.5">
                           {weather.wind_speed_kmh} <span className="text-[12px] font-normal">km/h</span>
                         </div>
                       </div>
                       <div className="pl-3">
-                        <div className="text-[11px] text-[#475569]">Visibility</div>
+                        <div className="text-[11px] text-[#475569]">
+                          {isId ? 'Jarak Pandang' : 'Visibility'}
+                        </div>
                         <div className="text-[17px] font-bold text-[#072D59] mt-0.5">
                           {weather.visibility_km} <span className="text-[12px] font-normal">km</span>
                         </div>
@@ -541,18 +583,22 @@ export const ShipmentDetailModal: React.FC<ShipmentDetailModalProps> = ({
                   </div>
                 ) : (
                   <div className="py-6 text-[13px] text-[#475569]">
-                    Weather telemetry unavailable for this destination.
+                    {isId
+                      ? 'Telemetri cuaca tidak tersedia untuk lokasi ini.'
+                      : 'Weather telemetry unavailable for this destination.'}
                   </div>
                 )}
               </div>
 
               <div className="mt-4 pt-2.5 border-t border-[#EEF2F8] text-[11.5px] text-[#475569]">
-                Meteorological conditions at destination hub for operational awareness.
+                {isId
+                  ? 'Kondisi meteorologi di hub tujuan untuk pemantauan operasional.'
+                  : 'Meteorological conditions at destination hub for operational awareness.'}
               </div>
             </div>
           </div>
 
-          {/* Sub-navigation Tabs + Operator Action Buttons on One Clean Row */}
+          {/* Sub-navigation Tabs + Operator Action Buttons */}
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#DCE4F0]">
             <div className="flex items-center gap-1">
               <button
@@ -564,7 +610,7 @@ export const ShipmentDetailModal: React.FC<ShipmentDetailModalProps> = ({
                     : 'border-transparent text-[#475569] hover:text-[#072D59]'
                 }`}
               >
-                Timeline ({shipmentEvents.length})
+                {isId ? 'Kronologi' : 'Timeline'} ({shipmentEvents.length})
               </button>
               <button
                 type="button"
@@ -575,7 +621,7 @@ export const ShipmentDetailModal: React.FC<ShipmentDetailModalProps> = ({
                     : 'border-transparent text-[#475569] hover:text-[#072D59]'
                 }`}
               >
-                Route Map
+                {isId ? 'Peta Rute' : 'Route Map'}
               </button>
               <button
                 type="button"
@@ -586,7 +632,7 @@ export const ShipmentDetailModal: React.FC<ShipmentDetailModalProps> = ({
                     : 'border-transparent text-[#475569] hover:text-[#072D59]'
                 }`}
               >
-                Exceptions ({shipmentExceptions.length})
+                {isId ? 'Kendala' : 'Exceptions'} ({shipmentExceptions.length})
               </button>
               <button
                 type="button"
@@ -597,7 +643,7 @@ export const ShipmentDetailModal: React.FC<ShipmentDetailModalProps> = ({
                     : 'border-transparent text-[#475569] hover:text-[#072D59]'
                 }`}
               >
-                Cargo Manifest ({shipmentItems.length || 1})
+                {isId ? 'Daftar Muatan' : 'Cargo Manifest'} ({shipmentItems.length || 1})
               </button>
             </div>
 
@@ -612,7 +658,7 @@ export const ShipmentDetailModal: React.FC<ShipmentDetailModalProps> = ({
                   className="px-3 py-1.5 rounded-lg bg-[#072D59] text-white text-[12px] font-semibold hover:bg-[#051F3E] transition-colors inline-flex items-center gap-1.5"
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  <span>Add Tracking Event</span>
+                  <span>{isId ? 'Tambah Riwayat Pelacakan' : 'Add Tracking Event'}</span>
                 </button>
                 <button
                   type="button"
@@ -623,7 +669,7 @@ export const ShipmentDetailModal: React.FC<ShipmentDetailModalProps> = ({
                   className="px-3 py-1.5 rounded-lg bg-white text-[#9F1D35] border border-[#FD6E88] text-[12px] font-semibold hover:bg-[#FFF0F3] transition-colors inline-flex items-center gap-1.5"
                 >
                   <AlertTriangle className="w-3.5 h-3.5 text-[#FD6E88]" />
-                  <span>Report Exception</span>
+                  <span>{isId ? 'Laporkan Kendala' : 'Report Exception'}</span>
                 </button>
               </div>
             )}
@@ -637,21 +683,23 @@ export const ShipmentDetailModal: React.FC<ShipmentDetailModalProps> = ({
             >
               <div className="flex items-center justify-between">
                 <h3 className="text-[13.5px] font-bold text-[#072D59]">
-                  Record Tracking Milestone ({formatEnumLabel(shipment.mode)} Mode)
+                  {isId
+                    ? `Catat Titik Pelacakan Baru (${translateMode(shipment.mode, lang)})`
+                    : `Record Tracking Milestone (${formatEnumLabel(shipment.mode)} Mode)`}
                 </h3>
                 <button
                   type="button"
                   onClick={() => setShowEventForm(false)}
                   className="text-xs font-medium text-[#475569] hover:text-[#072D59]"
                 >
-                  Cancel
+                  {isId ? 'Batal' : 'Cancel'}
                 </button>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[12.5px]">
                 <div>
                   <label className="block text-[11.5px] font-semibold text-[#1E293B] mb-1">
-                    Milestone Type
+                    {isId ? 'Jenis Aktivitas / Checkpoint' : 'Milestone Type'}
                   </label>
                   <select
                     value={eventType}
@@ -660,7 +708,7 @@ export const ShipmentDetailModal: React.FC<ShipmentDetailModalProps> = ({
                   >
                     {allowedEvents.map((ev) => (
                       <option key={ev} value={ev}>
-                        {formatEnumLabel(ev)} ({ev})
+                        {translateEventType(ev, lang)} ({ev})
                       </option>
                     ))}
                   </select>
@@ -668,17 +716,23 @@ export const ShipmentDetailModal: React.FC<ShipmentDetailModalProps> = ({
 
                 <div>
                   <label className="block text-[11.5px] font-semibold text-[#1E293B] mb-1">
-                    Status Transition
+                    {isId ? 'Perubahan Status Pengiriman' : 'Status Transition'}
                   </label>
                   <select
                     value={statusAfter}
                     onChange={(e) => setStatusAfter(e.target.value)}
                     className="w-full bg-[#F8FAFC] border border-[#CBD5E1] rounded-lg px-2.5 py-1.5 text-[12.5px] text-[#1E293B]"
                   >
-                    <option value="">Keep current ({formatEnumLabel(shipment.status)})</option>
+                    <option value="">
+                      {isId
+                        ? `Tetap (${translateShipmentStatus(shipment.status, lang)})`
+                        : `Keep current (${formatEnumLabel(shipment.status)})`}
+                    </option>
                     {Object.values(ShipmentStatus).map((st) => (
                       <option key={st} value={st}>
-                        Transition to {formatEnumLabel(st)}
+                        {isId
+                          ? `Ubah ke ${translateShipmentStatus(st, lang)}`
+                          : `Transition to ${formatEnumLabel(st)}`}
                       </option>
                     ))}
                   </select>
@@ -686,7 +740,7 @@ export const ShipmentDetailModal: React.FC<ShipmentDetailModalProps> = ({
 
                 <div>
                   <label className="block text-[11.5px] font-semibold text-[#1E293B] mb-1">
-                    Checkpoint Location
+                    {isId ? 'Lokasi Titik Pemeriksaan' : 'Checkpoint Location'}
                   </label>
                   <select
                     value={eventLocationId}
@@ -695,7 +749,7 @@ export const ShipmentDetailModal: React.FC<ShipmentDetailModalProps> = ({
                   >
                     {locations.map((loc) => (
                       <option key={loc.id} value={loc.id}>
-                        {loc.name} ({loc.code} · {formatEnumLabel(loc.type)})
+                        {loc.name} ({loc.code} · {translateLocationType(loc.type, lang)})
                       </option>
                     ))}
                   </select>
@@ -703,7 +757,7 @@ export const ShipmentDetailModal: React.FC<ShipmentDetailModalProps> = ({
 
                 <div>
                   <label className="block text-[11.5px] font-semibold text-[#1E293B] mb-1">
-                    Event Timestamp (UTC)
+                    {isId ? 'Waktu Kejadian (UTC)' : 'Event Timestamp (UTC)'}
                   </label>
                   <input
                     type="datetime-local"
@@ -715,7 +769,7 @@ export const ShipmentDetailModal: React.FC<ShipmentDetailModalProps> = ({
 
                 <div className="sm:col-span-2">
                   <label className="block text-[11.5px] font-semibold text-[#1E293B] mb-1">
-                    Revised Estimated Arrival (Optional)
+                    {isId ? 'Revisi Estimasi Tiba / ETA (Opsional)' : 'Revised Estimated Arrival (Optional)'}
                   </label>
                   <input
                     type="datetime-local"
@@ -727,12 +781,16 @@ export const ShipmentDetailModal: React.FC<ShipmentDetailModalProps> = ({
 
                 <div className="sm:col-span-2">
                   <label className="block text-[11.5px] font-semibold text-[#1E293B] mb-1">
-                    Checkpoint Notes
+                    {isId ? 'Catatan Pemeriksaan' : 'Checkpoint Notes'}
                   </label>
                   <input
                     type="text"
                     required
-                    placeholder="e.g., Container discharged at terminal berth 4 and cleared gate inspection"
+                    placeholder={
+                      isId
+                        ? 'Contoh: Kontainer telah dibongkar di dermaga 4 dan lolos pemeriksaan gerbang'
+                        : 'e.g., Container discharged at terminal berth 4 and cleared gate inspection'
+                    }
                     value={eventDescription}
                     onChange={(e) => setEventDescription(e.target.value)}
                     className="w-full bg-[#F8FAFC] border border-[#CBD5E1] rounded-lg px-3 py-1.5 text-[12.5px] text-[#1E293B]"
@@ -745,7 +803,7 @@ export const ShipmentDetailModal: React.FC<ShipmentDetailModalProps> = ({
                   type="submit"
                   className="px-4 py-1.5 bg-[#072D59] text-white rounded-lg text-[12.5px] font-semibold hover:bg-[#051F3E]"
                 >
-                  Save Tracking Event
+                  {isId ? 'Simpan Riwayat Pelacakan' : 'Save Tracking Event'}
                 </button>
               </div>
             </form>
@@ -759,21 +817,21 @@ export const ShipmentDetailModal: React.FC<ShipmentDetailModalProps> = ({
             >
               <div className="flex items-center justify-between">
                 <h3 className="text-[13.5px] font-bold text-[#9F1D35]">
-                  Report Operational Exception
+                  {isId ? 'Laporkan Kendala Operasional' : 'Report Operational Exception'}
                 </h3>
                 <button
                   type="button"
                   onClick={() => setShowExceptionForm(false)}
                   className="text-xs font-medium text-[#475569]"
                 >
-                  Cancel
+                  {isId ? 'Batal' : 'Cancel'}
                 </button>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-[12.5px]">
                 <div>
                   <label className="block text-[11.5px] font-semibold text-[#1E293B] mb-1">
-                    Category
+                    {isId ? 'Kategori Kendala' : 'Category'}
                   </label>
                   <select
                     value={excType}
@@ -782,7 +840,7 @@ export const ShipmentDetailModal: React.FC<ShipmentDetailModalProps> = ({
                   >
                     {Object.values(ExceptionType).map((t) => (
                       <option key={t} value={t}>
-                        {formatEnumLabel(t)}
+                        {translateExceptionType(t, lang)}
                       </option>
                     ))}
                   </select>
@@ -790,22 +848,28 @@ export const ShipmentDetailModal: React.FC<ShipmentDetailModalProps> = ({
 
                 <div>
                   <label className="block text-[11.5px] font-semibold text-[#1E293B] mb-1">
-                    Severity Level
+                    {isId ? 'Tingkat Keparahan' : 'Severity Level'}
                   </label>
                   <select
                     value={excSeverity}
                     onChange={(e) => setExcSeverity(e.target.value as SeverityLevel)}
                     className="w-full bg-[#F8FAFC] border border-[#CBD5E1] rounded-lg px-2.5 py-1.5 text-[12.5px]"
                   >
-                    <option value={SeverityLevel.LOW}>Low (0–6h)</option>
-                    <option value={SeverityLevel.MEDIUM}>Medium (6–24h)</option>
-                    <option value={SeverityLevel.HIGH}>High (&gt;24h)</option>
+                    <option value={SeverityLevel.LOW}>
+                      {isId ? 'Ringan (0–6 jam)' : 'Low (0–6h)'}
+                    </option>
+                    <option value={SeverityLevel.MEDIUM}>
+                      {isId ? 'Sedang (6–24 jam)' : 'Medium (6–24h)'}
+                    </option>
+                    <option value={SeverityLevel.HIGH}>
+                      {isId ? 'Parah (>24 jam)' : 'High (>24h)'}
+                    </option>
                   </select>
                 </div>
 
                 <div>
                   <label className="block text-[11.5px] font-semibold text-[#1E293B] mb-1">
-                    Estimated Delay Impact (+Hours)
+                    {isId ? 'Dampak Tambahan Waktu (+Jam)' : 'Estimated Delay Impact (+Hours)'}
                   </label>
                   <input
                     type="number"
@@ -819,12 +883,16 @@ export const ShipmentDetailModal: React.FC<ShipmentDetailModalProps> = ({
 
                 <div className="sm:col-span-3">
                   <label className="block text-[11.5px] font-semibold text-[#1E293B] mb-1">
-                    Incident Summary
+                    {isId ? 'Judul Ringkasan Insiden' : 'Incident Summary'}
                   </label>
                   <input
                     type="text"
                     required
-                    placeholder="e.g., Physical customs inspection scheduled at terminal"
+                    placeholder={
+                      isId
+                        ? 'Contoh: Pemeriksaan fisik bea cukai dijadwalkan di terminal'
+                        : 'e.g., Physical customs inspection scheduled at terminal'
+                    }
                     value={excTitle}
                     onChange={(e) => setExcTitle(e.target.value)}
                     className="w-full bg-[#F8FAFC] border border-[#CBD5E1] rounded-lg px-3 py-1.5 text-[12.5px]"
@@ -833,12 +901,16 @@ export const ShipmentDetailModal: React.FC<ShipmentDetailModalProps> = ({
 
                 <div className="sm:col-span-3">
                   <label className="block text-[11.5px] font-semibold text-[#1E293B] mb-1">
-                    Operational Details
+                    {isId ? 'Rincian Operasional & Tindakan' : 'Operational Details'}
                   </label>
                   <input
                     type="text"
                     required
-                    placeholder="Describe root cause and required clearance actions..."
+                    placeholder={
+                      isId
+                        ? 'Jelaskan penyebab kendala dan tindakan penyelesaian yang diperlukan...'
+                        : 'Describe root cause and required clearance actions...'
+                    }
                     value={excDesc}
                     onChange={(e) => setExcDesc(e.target.value)}
                     className="w-full bg-[#F8FAFC] border border-[#CBD5E1] rounded-lg px-3 py-1.5 text-[12.5px]"
@@ -851,18 +923,20 @@ export const ShipmentDetailModal: React.FC<ShipmentDetailModalProps> = ({
                   type="submit"
                   className="px-4 py-1.5 bg-[#FD6E88] text-white rounded-lg text-[12.5px] font-semibold hover:bg-[#e55670]"
                 >
-                  Open Exception & Update ETA
+                  {isId ? 'Laporkan Kendala & Perbarui ETA' : 'Open Exception & Update ETA'}
                 </button>
               </div>
             </form>
           )}
 
-          {/* TAB 1: CHRONOLOGICAL TIMELINE (Clean structured list, no pill clutter) */}
+          {/* TAB 1: CHRONOLOGICAL TIMELINE */}
           {activeTab === 'timeline' && (
             <div className="bg-white border border-[#DCE4F0] rounded-xl overflow-hidden">
               {shipmentEvents.length === 0 ? (
                 <div className="p-8 text-center text-[#475569] text-[13px]">
-                  No tracking milestones recorded yet for this shipment.
+                  {isId
+                    ? 'Belum ada riwayat titik pelacakan untuk pengiriman ini.'
+                    : 'No tracking milestones recorded yet for this shipment.'}
                 </div>
               ) : (
                 <div className="divide-y divide-[#EEF2F8]">
@@ -895,13 +969,13 @@ export const ShipmentDetailModal: React.FC<ShipmentDetailModalProps> = ({
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <div className="flex flex-wrap items-center gap-2 text-[13px]">
                               <span className="font-bold text-[#072D59]">
-                                {formatEnumLabel(ev.event_type)}
+                                {translateEventType(ev.event_type, lang)}
                               </span>
                               {ev.status_after && (
                                 <>
                                   <span className="text-[#94A3B8]">·</span>
                                   <span className="font-semibold text-[#1E293B]">
-                                    Status → {formatEnumLabel(ev.status_after)}
+                                    Status → {translateShipmentStatus(ev.status_after, lang)}
                                   </span>
                                 </>
                               )}
@@ -909,7 +983,7 @@ export const ShipmentDetailModal: React.FC<ShipmentDetailModalProps> = ({
                                 <>
                                   <span className="text-[#94A3B8]">·</span>
                                   <span className="text-[11.5px] font-semibold text-[#072D59]">
-                                    Latest checkpoint
+                                    {isId ? 'Titik terbaru' : 'Latest checkpoint'}
                                   </span>
                                 </>
                               )}
@@ -935,7 +1009,9 @@ export const ShipmentDetailModal: React.FC<ShipmentDetailModalProps> = ({
                               {ev.location_name}
                             </span>
                             <span>·</span>
-                            <span>Logged by {ev.created_by_name}</span>
+                            <span>
+                              {isId ? `Dicatat oleh ${ev.created_by_name}` : `Logged by ${ev.created_by_name}`}
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -952,7 +1028,9 @@ export const ShipmentDetailModal: React.FC<ShipmentDetailModalProps> = ({
               <div className="flex items-center justify-between text-[12.5px] text-[#475569]">
                 <span className="inline-flex items-center gap-1.5 font-medium text-[#072D59]">
                   <Navigation className="w-3.5 h-3.5" />
-                  Origin ({origin?.code}) → Active Checkpoint → Destination ({destination?.code})
+                  {isId
+                    ? `Asal (${origin?.code}) → Titik Aktif → Tujuan (${destination?.code})`
+                    : `Origin (${origin?.code}) → Active Checkpoint → Destination (${destination?.code})`}
                 </span>
                 <span className="tabular-nums">
                   {distanceKm.toLocaleString()} km
@@ -976,7 +1054,9 @@ export const ShipmentDetailModal: React.FC<ShipmentDetailModalProps> = ({
             <div className="space-y-3">
               {shipmentExceptions.length === 0 ? (
                 <div className="p-8 text-center bg-white rounded-xl border border-[#DCE4F0] text-[#475569] text-[13px]">
-                  No operational exceptions recorded for this shipment.
+                  {isId
+                    ? 'Tidak ada kendala operasional yang tercatat untuk pengiriman ini.'
+                    : 'No operational exceptions recorded for this shipment.'}
                 </div>
               ) : (
                 shipmentExceptions.map((ex) => (
@@ -986,16 +1066,22 @@ export const ShipmentDetailModal: React.FC<ShipmentDetailModalProps> = ({
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="flex flex-wrap items-center gap-2 text-[12.5px]">
-                        <ExceptionStatusBadge status={ex.status} />
+                        <ExceptionStatusBadge status={ex.status} lang={lang} />
                         <span className="font-semibold text-[#9F1D35]">
-                          {formatEnumLabel(ex.exception_type)}
+                          {translateExceptionType(ex.exception_type, lang)}
                         </span>
                         <span className="text-[#94A3B8]">·</span>
                         <span className="text-[#475569]">
                           {ex.severity === SeverityLevel.HIGH
-                            ? 'High impact (>24h)'
+                            ? isId
+                              ? 'Dampak tinggi (>24 jam)'
+                              : 'High impact (>24h)'
                             : ex.severity === SeverityLevel.MEDIUM
-                            ? 'Medium impact (6–24h)'
+                            ? isId
+                              ? 'Dampak sedang (6–24 jam)'
+                              : 'Medium impact (6–24h)'
+                            : isId
+                            ? 'Dampak ringan (0–6 jam)'
                             : 'Low impact (0–6h)'}
                         </span>
                       </div>
@@ -1013,7 +1099,10 @@ export const ShipmentDetailModal: React.FC<ShipmentDetailModalProps> = ({
                     <p className="text-[13px] text-[#1E293B]">{ex.description}</p>
                     {ex.resolution_notes && (
                       <div className="p-2.5 rounded-lg bg-[#F8FAFC] border border-[#E2E8F0] text-[12.5px] text-[#1E293B]">
-                        <strong className="text-[#072D59]">Resolution:</strong> {ex.resolution_notes}
+                        <strong className="text-[#072D59]">
+                          {isId ? 'Catatan Penyelesaian:' : 'Resolution:'}
+                        </strong>{' '}
+                        {ex.resolution_notes}
                       </div>
                     )}
                     {canMutate && ex.status !== ExceptionStatus.RESOLVED && (
@@ -1023,12 +1112,14 @@ export const ShipmentDetailModal: React.FC<ShipmentDetailModalProps> = ({
                           onClick={() =>
                             onResolveException(
                               ex.id,
-                              'Verified clearance documentation and released hold.'
+                              isId
+                                ? 'Dokumen telah diverifikasi dan penahanan kargo telah dilepas.'
+                                : 'Verified clearance documentation and released hold.'
                             )
                           }
                           className="px-3.5 py-1.5 bg-[#072D59] text-white rounded-lg text-[12px] font-semibold hover:bg-[#051F3E]"
                         >
-                          Mark Exception Resolved
+                          {isId ? 'Tandai Kendala Selesai' : 'Mark Exception Resolved'}
                         </button>
                       </div>
                     )}
@@ -1045,10 +1136,18 @@ export const ShipmentDetailModal: React.FC<ShipmentDetailModalProps> = ({
                 <thead>
                   <tr className="bg-[#F8FAFC] border-b border-[#DCE4F0] text-[#475569] text-[11.5px]">
                     <th className="py-2.5 px-3.5 font-semibold">SKU</th>
-                    <th className="py-2.5 px-3.5 font-semibold">Cargo Description</th>
-                    <th className="py-2.5 px-3.5 font-semibold">HS Code</th>
-                    <th className="py-2.5 px-3.5 font-semibold text-right">Quantity</th>
-                    <th className="py-2.5 px-3.5 font-semibold text-right">Weight (kg)</th>
+                    <th className="py-2.5 px-3.5 font-semibold">
+                      {isId ? 'Deskripsi Barang / Kargo' : 'Cargo Description'}
+                    </th>
+                    <th className="py-2.5 px-3.5 font-semibold">
+                      {isId ? 'Kode HS' : 'HS Code'}
+                    </th>
+                    <th className="py-2.5 px-3.5 font-semibold text-right">
+                      {isId ? 'Jumlah' : 'Quantity'}
+                    </th>
+                    <th className="py-2.5 px-3.5 font-semibold text-right">
+                      {isId ? 'Berat (kg)' : 'Weight (kg)'}
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#EEF2F8]">

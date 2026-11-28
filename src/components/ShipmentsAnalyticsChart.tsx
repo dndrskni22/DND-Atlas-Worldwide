@@ -23,30 +23,48 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
 interface ShipmentsAnalyticsChartProps {
   shipments: Shipment[];
   carriers: Carrier[];
+  lang?: 'id' | 'en';
 }
 
 export const ShipmentsAnalyticsChart: React.FC<ShipmentsAnalyticsChartProps> = ({
   shipments,
   carriers,
+  lang = 'id',
 }) => {
   const [chartMode, setChartMode] = useState<'daily_mode' | 'by_status' | 'by_carrier'>('daily_mode');
+  const isId = lang === 'id';
 
   // Compute daily buckets across 12 date windows (matching image.png structure)
   const dailyAnalytics = useMemo(() => {
-    const labels = [
-      'Oct 25, 2026',
-      'Oct 26, 2026',
-      'Oct 27, 2026',
-      'Oct 28, 2026',
-      'Oct 29, 2026',
-      'Oct 30, 2026',
-      'Oct 31, 2026',
-      'Nov 1, 2026',
-      'Nov 2, 2026',
-      'Nov 3, 2026',
-      'Nov 4, 2026',
-      'Nov 5, 2026',
-    ];
+    const labels = isId
+      ? [
+          '25 Okt 2026',
+          '26 Okt 2026',
+          '27 Okt 2026',
+          '28 Okt 2026',
+          '29 Okt 2026',
+          '30 Okt 2026',
+          '31 Okt 2026',
+          '1 Nov 2026',
+          '2 Nov 2026',
+          '3 Nov 2026',
+          '4 Nov 2026',
+          '5 Nov 2026',
+        ]
+      : [
+          'Oct 25, 2026',
+          'Oct 26, 2026',
+          'Oct 27, 2026',
+          'Oct 28, 2026',
+          'Oct 29, 2026',
+          'Oct 30, 2026',
+          'Oct 31, 2026',
+          'Nov 1, 2026',
+          'Nov 2, 2026',
+          'Nov 3, 2026',
+          'Nov 4, 2026',
+          'Nov 5, 2026',
+        ];
 
     // Derive deterministic activity percentages per day & mode from actual shipments list
     const totalCount = Math.max(1, shipments.length);
@@ -73,7 +91,7 @@ export const ShipmentsAnalyticsChart: React.FC<ShipmentsAnalyticsChartProps> = (
       : 0;
 
     return { labels, seaSeries, airSeries, roadSeries, peak, avg };
-  }, [shipments]);
+  }, [shipments, isId]);
 
   const statusChartData = useMemo(() => {
     const statuses = [
@@ -83,11 +101,18 @@ export const ShipmentsAnalyticsChart: React.FC<ShipmentsAnalyticsChartProps> = (
       ShipmentStatus.IN_TRANSIT,
       ShipmentStatus.DELIVERED,
     ];
+    const idLabels: Record<ShipmentStatus, string> = {
+      [ShipmentStatus.CREATED]: 'Dibuat',
+      [ShipmentStatus.BOOKED]: 'Dipesan',
+      [ShipmentStatus.PICKED_UP]: 'Diambil',
+      [ShipmentStatus.IN_TRANSIT]: 'Dalam Perjalanan',
+      [ShipmentStatus.DELIVERED]: 'Terkirim',
+    };
     return {
-      labels: statuses.map((s) => s.replace('_', ' ')),
+      labels: statuses.map((s) => (isId ? idLabels[s] : s.replace('_', ' '))),
       datasets: [
         {
-          label: 'Shipments by Status',
+          label: isId ? 'Jumlah Pengiriman berdasarkan Status' : 'Shipments by Status',
           data: statuses.map(
             (st) => shipments.filter((s) => s.status === st).length
           ),
@@ -97,14 +122,14 @@ export const ShipmentsAnalyticsChart: React.FC<ShipmentsAnalyticsChartProps> = (
         },
       ],
     };
-  }, [shipments]);
+  }, [shipments, isId]);
 
   const carrierChartData = useMemo(() => {
     return {
       labels: carriers.map((c) => `${c.name} (${c.mode})`),
       datasets: [
         {
-          label: 'Shipments by Carrier',
+          label: isId ? 'Jumlah Pengiriman berdasarkan Maskapai' : 'Shipments by Carrier',
           data: carriers.map(
             (c) => shipments.filter((s) => s.carrier_id === c.id).length
           ),
@@ -120,14 +145,14 @@ export const ShipmentsAnalyticsChart: React.FC<ShipmentsAnalyticsChartProps> = (
         },
       ],
     };
-  }, [shipments, carriers]);
+  }, [shipments, carriers, isId]);
 
   const dailyChartData = useMemo(
     () => ({
       labels: dailyAnalytics.labels,
       datasets: [
         {
-          label: 'Sea Freight (SEA)',
+          label: isId ? 'Kargo Laut (SEA)' : 'Sea Freight (SEA)',
           data: dailyAnalytics.seaSeries,
           backgroundColor: '#2563EB',
           borderRadius: 6,
@@ -135,7 +160,7 @@ export const ShipmentsAnalyticsChart: React.FC<ShipmentsAnalyticsChartProps> = (
           categoryPercentage: 0.72,
         },
         {
-          label: 'Air Freight (AIR)',
+          label: isId ? 'Kargo Udara (AIR)' : 'Air Freight (AIR)',
           data: dailyAnalytics.airSeries,
           backgroundColor: '#3B82F6',
           borderRadius: 6,
@@ -143,7 +168,7 @@ export const ShipmentsAnalyticsChart: React.FC<ShipmentsAnalyticsChartProps> = (
           categoryPercentage: 0.72,
         },
         {
-          label: 'Road Freight (ROAD)',
+          label: isId ? 'Kargo Darat (ROAD)' : 'Road Freight (ROAD)',
           data: dailyAnalytics.roadSeries,
           backgroundColor: '#60A5FA',
           borderRadius: 6,
@@ -152,7 +177,7 @@ export const ShipmentsAnalyticsChart: React.FC<ShipmentsAnalyticsChartProps> = (
         },
       ],
     }),
-    [dailyAnalytics]
+    [dailyAnalytics, isId]
   );
 
   const options: ChartOptions<'bar'> = useMemo(
@@ -186,7 +211,11 @@ export const ShipmentsAnalyticsChart: React.FC<ShipmentsAnalyticsChartProps> = (
           callbacks: {
             label: (ctx) =>
               chartMode === 'daily_mode'
-                ? `${ctx.dataset.label}: ${ctx.parsed.y}% capacity index`
+                ? isId
+                  ? `${ctx.dataset.label}: ${ctx.parsed.y}% indeks kapasitas`
+                  : `${ctx.dataset.label}: ${ctx.parsed.y}% capacity index`
+                : isId
+                ? `${ctx.dataset.label}: ${ctx.parsed.y} pengiriman`
                 : `${ctx.dataset.label}: ${ctx.parsed.y} shipments`,
           },
         },
@@ -229,7 +258,7 @@ export const ShipmentsAnalyticsChart: React.FC<ShipmentsAnalyticsChartProps> = (
         },
       },
     }),
-    [chartMode]
+    [chartMode, isId]
   );
 
   return (
@@ -239,7 +268,7 @@ export const ShipmentsAnalyticsChart: React.FC<ShipmentsAnalyticsChartProps> = (
         <div className="flex items-center gap-2">
           <BarChart3 className="w-4 h-4 text-[#072D59]" />
           <h2 className="text-[14px] font-bold text-[#0F172A]">
-            Shipments Analytics
+            {isId ? 'Analitik Pengiriman Global' : 'Shipments Analytics'}
           </h2>
         </div>
 
@@ -254,7 +283,7 @@ export const ShipmentsAnalyticsChart: React.FC<ShipmentsAnalyticsChartProps> = (
                   : 'text-[#64748B] hover:text-[#072D59]'
               }`}
             >
-              Daily by Mode
+              {isId ? 'Harian per Moda' : 'Daily by Mode'}
             </button>
             <button
               type="button"
@@ -265,7 +294,7 @@ export const ShipmentsAnalyticsChart: React.FC<ShipmentsAnalyticsChartProps> = (
                   : 'text-[#64748B] hover:text-[#072D59]'
               }`}
             >
-              By Status
+              {isId ? 'Per Status' : 'By Status'}
             </button>
             <button
               type="button"
@@ -276,17 +305,19 @@ export const ShipmentsAnalyticsChart: React.FC<ShipmentsAnalyticsChartProps> = (
                   : 'text-[#64748B] hover:text-[#072D59]'
               }`}
             >
-              By Carrier
+              {isId ? 'Per Maskapai' : 'By Carrier'}
             </button>
           </div>
 
           <div className="flex items-center gap-2 text-[12.5px] text-[#64748B] tabular-nums">
             <span>
-              Peak <strong className="text-[#0F172A]">{dailyAnalytics.peak}%</strong>
+              {isId ? 'Puncak' : 'Peak'}{' '}
+              <strong className="text-[#0F172A]">{dailyAnalytics.peak}%</strong>
             </span>
             <span aria-hidden="true">·</span>
             <span>
-              Avg <strong className="text-[#0F172A]">{dailyAnalytics.avg}%</strong>
+              {isId ? 'Rata-rata' : 'Avg'}{' '}
+              <strong className="text-[#0F172A]">{dailyAnalytics.avg}%</strong>
             </span>
           </div>
         </div>

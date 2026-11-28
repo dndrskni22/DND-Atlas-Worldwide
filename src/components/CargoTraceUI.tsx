@@ -7,9 +7,18 @@ import {
   TransportMode,
 } from '../types/cargotrace';
 import {
+  Language,
+  translateExceptionStatus,
+  translateLocationType,
+  translateMode,
+  translateSeverity,
+  translateShipmentStatus,
+} from '../i18n/translations';
+import {
   Anchor,
   Plane,
   Building2,
+  Globe,
 } from 'lucide-react';
 import seaShipPhoto from '../assets/images/vehicle_sea_ship_1794057883264.jpg';
 import airPlanePhoto from '../assets/images/vehicle_air_plane_1794057885938.jpg';
@@ -19,6 +28,47 @@ export const VEHICLE_PHOTO_BY_MODE: Record<TransportMode, string> = {
   [TransportMode.SEA]: seaShipPhoto,
   [TransportMode.AIR]: airPlanePhoto,
   [TransportMode.ROAD]: roadTruckPhoto,
+};
+
+export const LanguageSwitcher: React.FC<{
+  lang: Language;
+  onChange: (lang: Language) => void;
+}> = ({ lang, onChange }) => {
+  return (
+    <div
+      role="group"
+      aria-label="Language switcher"
+      className="inline-flex items-center bg-[#F4F7FB] border border-[#DCE4F0] rounded-lg p-0.5 text-[11.5px] font-bold select-none shadow-2xs"
+    >
+      <button
+        type="button"
+        data-testid="lang-switch-id"
+        onClick={() => onChange('id')}
+        className={`px-2.5 py-1 rounded-md inline-flex items-center gap-1 transition-all cursor-pointer ${
+          lang === 'id'
+            ? 'bg-[#072D59] text-white shadow-2xs'
+            : 'text-[#475569] hover:text-[#072D59]'
+        }`}
+        title="Bahasa Indonesia"
+      >
+        <Globe className="w-3 h-3" />
+        <span>ID · Indonesia</span>
+      </button>
+      <button
+        type="button"
+        data-testid="lang-switch-en"
+        onClick={() => onChange('en')}
+        className={`px-2.5 py-1 rounded-md inline-flex items-center gap-1 transition-all cursor-pointer ${
+          lang === 'en'
+            ? 'bg-[#072D59] text-white shadow-2xs'
+            : 'text-[#475569] hover:text-[#072D59]'
+        }`}
+        title="English"
+      >
+        <span>EN · English</span>
+      </button>
+    </div>
+  );
 };
 
 /**
@@ -147,27 +197,28 @@ export const ModeIconChip: React.FC<{
   mode: TransportMode;
   size?: 'sm' | 'md' | 'lg';
   showLabel?: boolean;
-}> = ({ mode, size = 'md', showLabel = false }) => {
+  lang?: Language;
+}> = ({ mode, size = 'md', showLabel = false, lang = 'id' }) => {
   const config = {
     [TransportMode.SEA]: {
       photo: seaShipPhoto,
       bg: 'bg-[#F0F7FF]',
       border: 'border-[#B8E2F8]',
-      label: 'Sea Freight',
+      label: translateMode(TransportMode.SEA, lang),
       alt: 'Container Vessel',
     },
     [TransportMode.AIR]: {
       photo: airPlanePhoto,
       bg: 'bg-[#F2F6FC]',
       border: 'border-[#C6D9F1]',
-      label: 'Air Freight',
+      label: translateMode(TransportMode.AIR, lang),
       alt: 'Cargo Freighter Aircraft',
     },
     [TransportMode.ROAD]: {
       photo: roadTruckPhoto,
       bg: 'bg-[#F3FAF9]',
       border: 'border-[#BCE3E8]',
-      label: 'Road Freight',
+      label: translateMode(TransportMode.ROAD, lang),
       alt: 'Heavy Logistics Truck',
     },
   }[mode];
@@ -201,21 +252,24 @@ export const ModeIconChip: React.FC<{
   );
 };
 
-export const LocationTypeBadge: React.FC<{ type: LocationType }> = ({ type }) => {
+export const LocationTypeBadge: React.FC<{
+  type: LocationType;
+  lang?: Language;
+}> = ({ type, lang = 'id' }) => {
   const map = {
     [LocationType.SEAPORT]: {
       icon: Anchor,
-      label: 'Seaport',
+      label: translateLocationType(LocationType.SEAPORT, lang),
       cls: 'text-[#072D59]',
     },
     [LocationType.AIRPORT]: {
       icon: Plane,
-      label: 'Airport',
+      label: translateLocationType(LocationType.AIRPORT, lang),
       cls: 'text-[#3E6FB4]',
     },
     [LocationType.DEPOT]: {
       icon: Building2,
-      label: 'Road Depot',
+      label: translateLocationType(LocationType.DEPOT, lang),
       cls: 'text-[#2F8F9A]',
     },
   }[type];
@@ -233,109 +287,74 @@ export const LocationTypeBadge: React.FC<{ type: LocationType }> = ({ type }) =>
 export const ShipmentStatusBadge: React.FC<{
   status: ShipmentStatus;
   isDelayed?: boolean;
-}> = ({ status, isDelayed = false }) => {
-  const statusLabels: Record<ShipmentStatus, string> = {
-    [ShipmentStatus.CREATED]: 'Created',
-    [ShipmentStatus.BOOKED]: 'Booked',
-    [ShipmentStatus.PICKED_UP]: 'Picked Up',
-    [ShipmentStatus.IN_TRANSIT]: 'In Transit',
-    [ShipmentStatus.DELIVERED]: 'Delivered',
-  };
+  lang?: Language;
+}> = ({ status, isDelayed = false, lang = 'id' }) => {
+  const statusText = translateShipmentStatus(status, lang);
 
   if (isDelayed && status !== ShipmentStatus.DELIVERED) {
     return (
       <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[11.5px] font-semibold bg-[#FFF0F3] text-[#9F1D35] border border-[#FD6E88]/70 whitespace-nowrap">
-        Delayed · {statusLabels[status]}
+        {lang === 'id' ? 'Terlambat' : 'Delayed'} · {statusText}
       </span>
     );
   }
 
-  const styles: Record<ShipmentStatus, { label: string; cls: string }> = {
-    [ShipmentStatus.CREATED]: {
-      label: 'Created',
-      cls: 'bg-[#F1F5F9] text-[#475569] border-[#CBD5E1]',
-    },
-    [ShipmentStatus.BOOKED]: {
-      label: 'Booked',
-      cls: 'bg-[#DBF2FC] text-[#072D59] border-[#B8E2F8]',
-    },
-    [ShipmentStatus.PICKED_UP]: {
-      label: 'Picked Up',
-      cls: 'bg-[#E6EEF9] text-[#072D59] border-[#C6D9F1]',
-    },
-    [ShipmentStatus.IN_TRANSIT]: {
-      label: 'In Transit',
-      cls: 'bg-[#072D59] text-white border-[#072D59]',
-    },
-    [ShipmentStatus.DELIVERED]: {
-      label: 'Delivered',
-      cls: 'bg-[#E5F3EC] text-[#2B6E51] border-[#B8E0CC]',
-    },
+  const clsMap: Record<ShipmentStatus, string> = {
+    [ShipmentStatus.CREATED]: 'bg-[#F1F5F9] text-[#475569] border-[#CBD5E1]',
+    [ShipmentStatus.BOOKED]: 'bg-[#DBF2FC] text-[#072D59] border-[#B8E2F8]',
+    [ShipmentStatus.PICKED_UP]: 'bg-[#E6EEF9] text-[#072D59] border-[#C6D9F1]',
+    [ShipmentStatus.IN_TRANSIT]: 'bg-[#072D59] text-white border-[#072D59]',
+    [ShipmentStatus.DELIVERED]: 'bg-[#E5F3EC] text-[#2B6E51] border-[#B8E0CC]',
   };
 
-  const s = styles[status];
   return (
     <span
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-[11.5px] font-semibold border whitespace-nowrap ${s.cls}`}
+      className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-[11.5px] font-semibold border whitespace-nowrap ${clsMap[status]}`}
     >
-      {s.label}
+      {statusText}
     </span>
   );
 };
 
-export const SeverityBadge: React.FC<{ severity: SeverityLevel }> = ({ severity }) => {
+export const SeverityBadge: React.FC<{
+  severity: SeverityLevel;
+  lang?: Language;
+}> = ({ severity, lang = 'id' }) => {
   if (severity === SeverityLevel.NONE) {
     return (
       <span className="text-[12px] font-medium text-[#2B6E51] whitespace-nowrap">
-        On schedule
+        {translateSeverity(SeverityLevel.NONE, lang)}
       </span>
     );
   }
 
-  const styles: Record<Exclude<SeverityLevel, SeverityLevel.NONE>, { label: string; cls: string }> = {
-    [SeverityLevel.LOW]: {
-      label: 'Minor delay (0–6h)',
-      cls: 'text-[#475569]',
-    },
-    [SeverityLevel.MEDIUM]: {
-      label: 'Moderate delay (6–24h)',
-      cls: 'text-[#975A16]',
-    },
-    [SeverityLevel.HIGH]: {
-      label: 'Severe delay (>24h)',
-      cls: 'text-[#9F1D35]',
-    },
+  const clsMap: Record<Exclude<SeverityLevel, SeverityLevel.NONE>, string> = {
+    [SeverityLevel.LOW]: 'text-[#475569]',
+    [SeverityLevel.MEDIUM]: 'text-[#975A16]',
+    [SeverityLevel.HIGH]: 'text-[#9F1D35]',
   };
 
-  const s = styles[severity];
   return (
-    <span className={`text-[12px] font-semibold whitespace-nowrap ${s.cls}`}>
-      {s.label}
+    <span className={`text-[12px] font-semibold whitespace-nowrap ${clsMap[severity]}`}>
+      {translateSeverity(severity, lang)}
     </span>
   );
 };
 
-export const ExceptionStatusBadge: React.FC<{ status: ExceptionStatus }> = ({ status }) => {
-  const styles: Record<ExceptionStatus, { label: string; cls: string }> = {
-    [ExceptionStatus.OPEN]: {
-      label: 'Open Hold',
-      cls: 'bg-[#FFF0F3] text-[#9F1D35] border-[#FD6E88]/80',
-    },
-    [ExceptionStatus.INVESTIGATING]: {
-      label: 'Under Review',
-      cls: 'bg-[#DBF2FC] text-[#072D59] border-[#9BD4F0]',
-    },
-    [ExceptionStatus.RESOLVED]: {
-      label: 'Resolved',
-      cls: 'bg-[#E5F3EC] text-[#2B6E51] border-[#B8E0CC]',
-    },
+export const ExceptionStatusBadge: React.FC<{
+  status: ExceptionStatus;
+  lang?: Language;
+}> = ({ status, lang = 'id' }) => {
+  const clsMap: Record<ExceptionStatus, string> = {
+    [ExceptionStatus.OPEN]: 'bg-[#FFF0F3] text-[#9F1D35] border-[#FD6E88]/80',
+    [ExceptionStatus.INVESTIGATING]: 'bg-[#DBF2FC] text-[#072D59] border-[#9BD4F0]',
+    [ExceptionStatus.RESOLVED]: 'bg-[#E5F3EC] text-[#2B6E51] border-[#B8E0CC]',
   };
-  const s = styles[status];
   return (
     <span
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-[11.5px] font-semibold border whitespace-nowrap ${s.cls}`}
+      className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-[11.5px] font-semibold border whitespace-nowrap ${clsMap[status]}`}
     >
-      {s.label}
+      {translateExceptionStatus(status, lang)}
     </span>
   );
 };

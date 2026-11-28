@@ -46,6 +46,7 @@ interface CargoTraceLeafletMapProps {
   onSelectShipment?: (shipment: Shipment) => void;
   heightClass?: string;
   compactControlDefault?: boolean;
+  lang?: 'id' | 'en';
 }
 
 type OsmTileStyle = 'osm_standard' | 'osm_humanitarian';
@@ -284,7 +285,9 @@ export const CargoTraceLeafletMap: React.FC<CargoTraceLeafletMapProps> = ({
   onSelectShipment,
   heightClass = 'h-[560px]',
   compactControlDefault = false,
+  lang = 'id',
 }) => {
+  const isId = lang === 'id';
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const overlayCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const compassDialSvgRef = useRef<SVGSVGElement | null>(null);
@@ -925,20 +928,20 @@ export const CargoTraceLeafletMap: React.FC<CargoTraceLeafletMapProps> = ({
   }> = [
     {
       mode: TransportMode.SEA,
-      label: 'Sea Routes (SEA)',
-      sublabel: 'Curved ocean shipping lanes',
+      label: isId ? 'Rute Laut (SEA)' : 'Sea Routes (SEA)',
+      sublabel: isId ? 'Jalur pelayaran samudra' : 'Curved ocean shipping lanes',
       photo: VEHICLE_PHOTO_BY_MODE[TransportMode.SEA],
     },
     {
       mode: TransportMode.AIR,
-      label: 'Air Routes (AIR)',
-      sublabel: 'Great-circle flight arcs',
+      label: isId ? 'Rute Udara (AIR)' : 'Air Routes (AIR)',
+      sublabel: isId ? 'Lintasan penerbangan udara' : 'Great-circle flight arcs',
       photo: VEHICLE_PHOTO_BY_MODE[TransportMode.AIR],
     },
     {
       mode: TransportMode.ROAD,
-      label: 'Road Routes (ROAD)',
-      sublabel: 'Overland trucking corridors',
+      label: isId ? 'Rute Darat (ROAD)' : 'Road Routes (ROAD)',
+      sublabel: isId ? 'Koridor truk darat' : 'Overland trucking corridors',
       photo: VEHICLE_PHOTO_BY_MODE[TransportMode.ROAD],
     },
   ];
@@ -1047,12 +1050,12 @@ export const CargoTraceLeafletMap: React.FC<CargoTraceLeafletMapProps> = ({
                     }`}
                   >
                     {activePopupRoute.isDelayed
-                      ? 'Delayed'
+                      ? isId ? 'Terlambat' : 'Delayed'
                       : formatEnumLabel(activePopupRoute.representative.status)}
                   </span>
                 </div>
                 <div className="text-[11.5px] font-semibold text-[#334155] truncate">
-                  {activePopupRoute.carrier?.name || 'Assigned Carrier'}
+                  {activePopupRoute.carrier?.name || (isId ? 'Maskapai / Operator' : 'Assigned Carrier')}
                 </div>
                 <div className="text-[10.5px] text-[#64748B] truncate">
                   {activePopupRoute.representative.vehicle_ref}
@@ -1075,11 +1078,11 @@ export const CargoTraceLeafletMap: React.FC<CargoTraceLeafletMapProps> = ({
           </div>
           <div className="text-[11.5px] text-[#334155] mt-1.5 pt-1.5 border-t border-[#E3E9F3] space-y-0.5">
             <div>
-              <strong>Checkpoint:</strong> {activePopupRoute.currentLocationLabel}
+              <strong>{isId ? 'Titik Pantau:' : 'Checkpoint:'}</strong> {activePopupRoute.currentLocationLabel}
             </div>
             <div>
-              <strong>Corridor Volume:</strong> {activePopupRoute.corridorCount} active
-              shipment(s) · {activePopupRoute.distKm.toLocaleString()} km
+              <strong>{isId ? 'Volume Koridor:' : 'Corridor Volume:'}</strong> {activePopupRoute.corridorCount}{' '}
+              {isId ? 'pengiriman aktif' : 'active shipment(s)'} · {activePopupRoute.distKm.toLocaleString()} km
             </div>
             <div>
               <strong>ETA:</strong>{' '}
@@ -1101,7 +1104,7 @@ export const CargoTraceLeafletMap: React.FC<CargoTraceLeafletMapProps> = ({
               onClick={() => onSelectShipment(activePopupRoute.representative)}
               className="mt-2.5 w-full py-1.5 px-3 rounded-lg bg-[#072D59] hover:bg-[#051F3E] text-white text-[11.5px] font-semibold cursor-pointer transition-colors"
             >
-              Inspect {activePopupRoute.representative.shipment_number} Details →
+              {isId ? `Lihat Detail ${activePopupRoute.representative.shipment_number} →` : `Inspect ${activePopupRoute.representative.shipment_number} Details →`}
             </button>
           )}
         </div>
@@ -1185,7 +1188,7 @@ export const CargoTraceLeafletMap: React.FC<CargoTraceLeafletMapProps> = ({
           title="Switch between 3D Earth Globe and 2D Flat OpenStreetMap"
         >
           <Globe className="w-3.5 h-3.5" />
-          <span>{isGlobeProjection ? '3D Globe (OSM)' : '2D Flat Map'}</span>
+          <span>{isGlobeProjection ? (isId ? 'Bola Dunia 3D (OSM)' : '3D Globe (OSM)') : (isId ? 'Peta Datar 2D' : '2D Flat Map')}</span>
         </button>
 
         {/* Spin / Orbit Globe Controls */}
@@ -1196,16 +1199,16 @@ export const CargoTraceLeafletMap: React.FC<CargoTraceLeafletMapProps> = ({
             className="px-2 py-1 rounded-md text-[11px] font-bold bg-[#F8FAFC] text-[#072D59] hover:bg-[#E2E8F0] cursor-pointer"
             title="Spin Globe West (Europe / Atlantic)"
           >
-            ◀ Spin West
+            {isId ? '◀ Putar Barat' : '◀ Spin West'}
           </button>
           <button
             type="button"
             onClick={resetGlobeView}
             className="px-2 py-1 rounded-md text-[11px] font-semibold bg-[#DBF2FC] text-[#072D59] hover:bg-[#B8E2F8] inline-flex items-center gap-1 cursor-pointer"
-            title="Center Globe on Southeast Asia → Europe Corridor"
+            title="Center Globe"
           >
             <Compass className="w-3 h-3" />
-            <span>Center Corridor</span>
+            <span>{isId ? 'Tengah Dunia' : 'Center Corridor'}</span>
           </button>
           <button
             type="button"
@@ -1213,7 +1216,7 @@ export const CargoTraceLeafletMap: React.FC<CargoTraceLeafletMapProps> = ({
             className="px-2 py-1 rounded-md text-[11px] font-bold bg-[#F8FAFC] text-[#072D59] hover:bg-[#E2E8F0] cursor-pointer"
             title="Spin Globe East (Asia-Pacific)"
           >
-            Spin East ▶
+            {isId ? 'Putar Timur ▶' : 'Spin East ▶'}
           </button>
         </div>
 
@@ -1249,10 +1252,12 @@ export const CargoTraceLeafletMap: React.FC<CargoTraceLeafletMapProps> = ({
             </div>
             <div>
               <div className="text-[12.5px] font-bold text-[#072D59] leading-tight">
-                Layer Toggle
+                {isId ? 'Filter Lapisan Peta' : 'Layer Toggle'}
               </div>
               <div className="text-[11px] text-[#4B5C78] tabular-nums">
-                {layerVisibleShipments.length} of {shipments.length} routes shown
+                {isId
+                  ? `${layerVisibleShipments.length} dari ${shipments.length} rute tampil`
+                  : `${layerVisibleShipments.length} of ${shipments.length} routes shown`}
               </div>
             </div>
           </div>
@@ -1288,7 +1293,7 @@ export const CargoTraceLeafletMap: React.FC<CargoTraceLeafletMapProps> = ({
         {!isPanelCollapsed && (
           <div className="p-2.5 space-y-1.5">
             <div className="px-1 text-[10.5px] font-bold uppercase tracking-wider text-[#4B5C78]">
-              Transport Mode Corridors
+              {isId ? 'Koridor Moda Transportasi' : 'Transport Mode Corridors'}
             </div>
 
             {modeLayerMeta.map(({ mode, label, sublabel, photo }) => {
@@ -1366,7 +1371,7 @@ export const CargoTraceLeafletMap: React.FC<CargoTraceLeafletMapProps> = ({
 
             <div className="pt-1.5 mt-1.5 border-t border-[#E3E9F3] space-y-1">
               <div className="px-1 text-[10.5px] font-bold uppercase tracking-wider text-[#4B5C78]">
-                Infrastructure & Risk Overlays
+                {isId ? 'Infrastruktur & Risiko' : 'Infrastructure & Risk Overlays'}
               </div>
 
               <button
@@ -1384,7 +1389,7 @@ export const CargoTraceLeafletMap: React.FC<CargoTraceLeafletMapProps> = ({
                 <div className="flex items-center gap-2">
                   <MapPin className="w-3.5 h-3.5 text-[#072D59]" />
                   <span className="text-[11.5px] font-semibold text-[#1E293B]">
-                    Ports, Airports & Depots
+                    {isId ? 'Pelabuhan, Bandara & Depo' : 'Ports, Airports & Depots'}
                   </span>
                 </div>
                 <span className="text-[11px] tabular-nums font-bold text-[#072D59]">
@@ -1407,7 +1412,7 @@ export const CargoTraceLeafletMap: React.FC<CargoTraceLeafletMapProps> = ({
                 <div className="flex items-center gap-2">
                   <Clock className="w-3.5 h-3.5 text-[#FD6E88]" />
                   <span className="text-[11.5px] font-semibold text-[#9F1D35]">
-                    Delayed Routes Only
+                    {isId ? 'Hanya Rute Terlambat' : 'Delayed Routes Only'}
                   </span>
                 </div>
                 <span
@@ -1428,14 +1433,14 @@ export const CargoTraceLeafletMap: React.FC<CargoTraceLeafletMapProps> = ({
       {layerVisibleShipments.length === 0 && (
         <div className="absolute top-16 left-1/2 -translate-x-1/2 z-[400] bg-white/98 border border-[#072D59] rounded-xl px-4 py-2.5 shadow-lg flex items-center gap-3 text-[12.5px] text-[#072D59]">
           <span className="font-semibold">
-            No routes match the active map layers.
+            {isId ? 'Tidak ada rute pada lapisan peta yang aktif.' : 'No routes match the active map layers.'}
           </span>
           <button
             type="button"
             onClick={resetAllLayers}
             className="px-2.5 py-1 rounded-lg bg-[#072D59] text-white text-[11.5px] font-semibold hover:bg-[#051F3E]"
           >
-            Show All Layers
+            {isId ? 'Tampilkan Semua' : 'Show All Layers'}
           </button>
         </div>
       )}
@@ -1572,23 +1577,25 @@ export const CargoTraceLeafletMap: React.FC<CargoTraceLeafletMapProps> = ({
       {/* Bottom-Left Map Legend */}
       <div className="absolute bottom-3 left-3 z-[400] bg-white/95 border border-[#CBD5E1] rounded-lg px-3 py-2 shadow-sm flex flex-wrap items-center gap-3.5 text-[11.5px] text-[#1E293B]">
         <span className="font-bold text-[#072D59]">
-          {isGlobeProjection ? '3D Globe (WebGL OpenStreetMap):' : '2D OpenStreetMap:'}
+          {isGlobeProjection
+            ? isId ? 'Bola Dunia 3D (OpenStreetMap):' : '3D Globe (WebGL OpenStreetMap):'
+            : isId ? 'Peta Datar 2D:' : '2D OpenStreetMap:'}
         </span>
         <span className="inline-flex items-center gap-1.5 font-medium">
           <span className="w-4 h-0.5 rounded-full bg-[#072D59]" />
-          Sea Lane (Solid Curve)
+          {isId ? 'Jalur Laut (Garis Utuh)' : 'Sea Lane (Solid Curve)'}
         </span>
         <span className="inline-flex items-center gap-1.5 font-medium">
           <span className="w-4 h-0.5 border-b-2 border-dashed border-[#2563EB]" />
-          Air Arc (Great-Circle)
+          {isId ? 'Jalur Udara (Putus-putus)' : 'Air Arc (Great-Circle)'}
         </span>
         <span className="inline-flex items-center gap-1.5 font-medium">
           <span className="w-4 h-0.5 border-b-2 border-dotted border-[#0D9488]" />
-          Road Corridor
+          {isId ? 'Koridor Darat (Titik-titik)' : 'Road Corridor'}
         </span>
         <span className="inline-flex items-center gap-1.5 font-medium text-[#9F1D35]">
           <span className="w-2.5 h-2.5 rounded-full bg-[#FD6E88]" />
-          Delayed / Hold
+          {isId ? 'Terlambat / Tertahan' : 'Delayed / Hold'}
         </span>
       </div>
     </div>

@@ -146,10 +146,14 @@ export interface ShipmentException {
   reported_by_name: string;
 }
 
+export type ScenarioGroupCode = 'GROUP_A' | 'GROUP_B' | 'GROUP_C';
+export type ScenarioGroupFilter = 'ALL' | ScenarioGroupCode;
+
 export interface Shipment {
   id: number;
-  shipment_number: string; // Unique e.g. CT-2026-000101
+  shipment_number: string; // Unique e.g. DND-2026-000101
   route_code: string; // e.g. RT-0142
+  scenario_group?: ScenarioGroupCode; // GROUP_A (SEA->EU), GROUP_B (Asia->NA), GROUP_C (SEA->AU)
   customer_id: number;
   customer_name: string;
   carrier_id: number;
@@ -196,14 +200,36 @@ export interface AuditLogEntry {
 }
 
 export interface GroupConfigSettings {
+  group_code?: ScenarioGroupCode;
   group_name: string;
   primary_route_focus: string;
-  delay_threshold_hours: number; // Default 12h for Group A (configurable live during interview!)
+  delay_threshold_hours: number; // Group A: 12h, Group B: 18h, Group C: 24h
   low_severity_max_hours: number; // 6h
   medium_severity_max_hours: number; // 24h
   main_exception_focus: ExceptionType;
   group_kpi_label: string;
   multimodal_option: 'Option A (Primary Mode per Shipment)';
+}
+
+export interface GroupScenarioKpiSummary {
+  code: ScenarioGroupCode;
+  group_name: string;
+  route_corridor: string;
+  delay_threshold_hours: number;
+  main_exception_type: ExceptionType;
+  main_exception_label: string;
+  kpi_name: string;
+  kpi_value_formatted: string;
+  kpi_numeric_value: number;
+  kpi_unit: '%' | 'jam';
+  kpi_subtitle: string;
+  total_shipments: number;
+  delayed_shipments: number;
+  exceeding_threshold_count: number;
+  matching_exception_count: number;
+  on_time_delivery_rate_pct: number;
+  average_delay_duration_hours: number;
+  avg_exception_resolution_hours: number;
 }
 
 export interface EtaEvaluationResult {

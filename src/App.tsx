@@ -10,6 +10,8 @@ import {
   ModeEventType,
   NotificationItem,
   RouteVolumeRow,
+  ScenarioGroupCode,
+  ScenarioGroupFilter,
   SeverityLevel,
   Shipment,
   ShipmentException,
@@ -36,10 +38,13 @@ import {
 import {
   AuthPolicyService,
   EtaService,
+  GROUP_SCENARIO_PRESETS,
   ShipmentService,
   TrackingService,
   calculateHaversineKm,
   calculateHaversineMiles,
+  classifyShipmentScenarioGroup,
+  computeAllGroupScenarioKpis,
   formatEnumLabel,
 } from './services/CargoTraceService';
 import { ExternalApiService } from './services/ExternalApiService';
@@ -47,11 +52,25 @@ import {
   DndAtlasBrandMark,
   ExceptionStatusBadge,
   KpiStatCard,
+  LanguageSwitcher,
   LocationTypeBadge,
   ModeIconChip,
   SeverityBadge,
   ShipmentStatusBadge,
 } from './components/CargoTraceUI';
+import {
+  Language,
+  getSavedLanguage,
+  saveLanguage,
+  translateAuditAction,
+  translateExceptionType,
+  translateLocationType,
+  translateMode,
+  translateModeCorridorLabel,
+  translateModeShort,
+  translateRole,
+  translateShipmentStatus,
+} from './i18n/translations';
 import { ShipmentsAnalyticsChart } from './components/ShipmentsAnalyticsChart';
 import { CargoTraceLeafletMap } from './components/CargoTraceLeafletMap';
 import { ShipmentDetailModal } from './components/ShipmentDetailModal';
@@ -102,7 +121,7 @@ type ActiveSection =
 
 type TimeRangeSegment = '15m' | '1h' | '24h' | '3d' | '7d' | 'all';
 
-const SECTION_LABELS: Record<ActiveSection, string> = {
+const SECTION_LABELS_EN: Record<ActiveSection, string> = {
   overview: 'Logistics Overview',
   tracking: 'Tracking & Timeline',
   shipments: 'Shipments Directory',
@@ -118,7 +137,31 @@ const SECTION_LABELS: Record<ActiveSection, string> = {
   code_ownership: 'Architecture Reference',
 };
 
+const SECTION_LABELS_ID: Record<ActiveSection, string> = {
+  overview: 'Ringkasan Logistik',
+  tracking: 'Lacak & Kronologi',
+  shipments: 'Daftar Pesanan & Pengiriman',
+  active_routes: 'Peta Rute Aktif',
+  popular_routes: 'Rute Terpopuler',
+  weather: 'Prakiraan Cuaca Hub',
+  exceptions: 'Kendala & Penahanan',
+  notifications: 'Notifikasi Sistem',
+  history: 'Riwayat & Log Audit',
+  carriers: 'Maskapai & Armada',
+  locations: 'Lokasi & Pelabuhan/Bandara',
+  settings: 'Pengaturan SLA',
+  code_ownership: 'Panduan Arsitektur & Tanya Jawab',
+};
+
 export const App: React.FC = () => {
+  const [lang, setLang] = useState<Language>(() => getSavedLanguage());
+  const isId = lang === 'id';
+
+  const handleChangeLang = (nextLang: Language) => {
+    setLang(nextLang);
+    saveLanguage(nextLang);
+  };
+
   const [users] = useState<User[]>(SEED_USERS);
   const [currentUser, setCurrentUser] = useState<User>(() => {
     try {
@@ -168,6 +211,7 @@ export const App: React.FC = () => {
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>(SEED_AUDIT_LOGS);
 
   // Filters & Toolbar State
+  const [scenarioGroupFilter, setScenarioGroupFilter] = useState<ScenarioGroupFilter>('ALL');
   const [modeFilter, setModeFilter] = useState<'ALL' | TransportMode>('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | ShipmentStatus | 'DELAYED'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
@@ -234,12 +278,53 @@ export const App: React.FC = () => {
     }, 4500);
   };
 
+  // Switch active Scenario Group (All Groups A-C, Group A, Group B, or Group C)
+  const handleSelectScenarioGroup = (targetGroup: ScenarioGroupFilter) => {
+    setScenarioGroupFilter(targetGroup);
+    setCurrentPage(1);
+    if (targetGroup === 'ALL') {
+      showToast(
+        'Showing All Groups (A + B + C): SEA→Europe (12h), Asia→North America (18h), and SEA→Australia (24h).'
+      );
+      return;
+    }
+    const preset = GROUP_SCENARIO_PRESETS[targetGroup];
+    setSettings(preset);
+    showToast(
+      `Active Scenario: ${preset.group_name} · Threshold ${preset.delay_threshold_hours} jam · Exception: ${formatEnumLabel(
+        preset.main_exception_focus
+      )} · KPI: ${preset.group_kpi_label}`
+    );
+  };
+
+  // Primary worldwide hubs for Weather Forecast across Asia, Europe, North America, South America, Middle East, and Australia
+  const featuredWeatherLocations = useMemo(() => {
+    const priorityCodes = [
+      'IDTPP',
+      'SGSIN',
+      'NLRTM',
+      'DEHAM',
+      'USLAX',
+      'USNYC',
+      'CNSHA',
+      'JPTYO',
+      'AEJEA',
+      'AUMEL',
+      'AUSYD',
+      'BRSSZ',
+    ];
+    const selected = priorityCodes
+      .map((code) => locations.find((l) => l.code === code))
+      .filter((l): l is Location => Boolean(l));
+    return selected.length >= 8 ? selected : locations.slice(0, 12);
+  }, [locations]);
+
   // Load weather when visiting weather tab
   useEffect(() => {
     if (activeSection !== 'weather') return;
     setLoadingWeatherAll(true);
     Promise.all(
-      locations.slice(0, 8).map((loc) => ExternalApiService.fetchLocationWeather(loc))
+      featuredWeatherLocations.map((loc) => ExternalApiService.fetchLocationWeather(loc))
     ).then((snaps) => {
       const next: Record<string, WeatherSnapshot> = {};
       snaps.forEach((s) => {
@@ -248,7 +333,7 @@ export const App: React.FC = () => {
       setWeatherSnapshots(next);
       setLoadingWeatherAll(false);
     });
-  }, [activeSection, locations]);
+  }, [activeSection, featuredWeatherLocations]);
 
   // 1. Role-Scoped Shipments (Server-Side Policy Enforcement: Slide 5 & 13)
   // Customers can NEVER see another customer's shipments
@@ -258,7 +343,12 @@ export const App: React.FC = () => {
     );
   }, [shipments, currentUser]);
 
-  // 2. Filtered Shipments by Mode, Search, Status, and Time Range Segment
+  // 1b. Live Group A, Group B, and Group C Scenario KPI Summaries (Slide 23)
+  const groupScenarioKpis = useMemo(() => {
+    return computeAllGroupScenarioKpis(roleScopedShipments, exceptions, locations);
+  }, [roleScopedShipments, exceptions, locations]);
+
+  // 2. Filtered Shipments by Scenario Group (A/B/C), Mode, Search, Status, and Time Range Segment
   const filteredShipments = useMemo(() => {
     const anchorMs = new Date('2026-11-05T04:00:00Z').getTime();
     const segmentHoursMap: Record<TimeRangeSegment, number | null> = {
@@ -278,6 +368,10 @@ export const App: React.FC = () => {
 
     return roleScopedShipments
       .filter((sh) => {
+        if (scenarioGroupFilter !== 'ALL') {
+          const shGroup = classifyShipmentScenarioGroup(sh, locMap);
+          if (shGroup !== scenarioGroupFilter) return false;
+        }
         if (modeFilter !== 'ALL' && sh.mode !== modeFilter) return false;
 
         const eta = EtaService.evaluate(
@@ -342,6 +436,7 @@ export const App: React.FC = () => {
       });
   }, [
     roleScopedShipments,
+    scenarioGroupFilter,
     modeFilter,
     statusFilter,
     timeSegment,
@@ -941,6 +1036,8 @@ export const App: React.FC = () => {
     return (
       <LoginPage
         users={users}
+        lang={lang}
+        onChangeLang={handleChangeLang}
         onLoginSuccess={(user) => {
           setCurrentUser(user);
           setIsAuthenticated(true);
@@ -958,7 +1055,11 @@ export const App: React.FC = () => {
           } catch {
             // Ignore storage errors
           }
-          showToast(`Signed in as ${user.name} (${formatEnumLabel(user.role)}).`);
+          showToast(
+            isId
+              ? `Masuk sebagai ${user.name} (${translateRole(user.role, lang)}).`
+              : `Signed in as ${user.name} (${formatEnumLabel(user.role)}).`
+          );
         }}
       />
     );
@@ -1005,15 +1106,15 @@ export const App: React.FC = () => {
           <nav aria-label="Main navigation" className="p-2.5 space-y-0.5">
             {(
               [
-                { id: 'overview', label: 'Overview', icon: LayoutGrid, roles: [UserRole.ADMIN, UserRole.OPERATOR, UserRole.CUSTOMER] },
-                { id: 'tracking', label: 'Tracking', icon: Search, roles: [UserRole.ADMIN, UserRole.OPERATOR, UserRole.CUSTOMER] },
-                { id: 'shipments', label: 'My Orders', icon: Package, roles: [UserRole.ADMIN, UserRole.OPERATOR, UserRole.CUSTOMER] },
-                { id: 'active_routes', label: 'Active routes', icon: MapPin, roles: [UserRole.ADMIN, UserRole.OPERATOR, UserRole.CUSTOMER] },
-                { id: 'popular_routes', label: 'Popular routes', icon: Route, roles: [UserRole.ADMIN, UserRole.OPERATOR, UserRole.CUSTOMER] },
-                { id: 'weather', label: 'Weather forecast', icon: CloudSun, roles: [UserRole.ADMIN, UserRole.OPERATOR, UserRole.CUSTOMER] },
-                { id: 'exceptions', label: 'Exceptions', icon: AlertTriangle, roles: [UserRole.ADMIN, UserRole.OPERATOR, UserRole.CUSTOMER] },
-                { id: 'notifications', label: 'Notifications', icon: Bell, roles: [UserRole.ADMIN, UserRole.OPERATOR, UserRole.CUSTOMER], badge: unreadNotificationsCount },
-                { id: 'history', label: 'History', icon: History, roles: [UserRole.ADMIN] },
+                { id: 'overview', label: isId ? 'Ringkasan' : 'Overview', icon: LayoutGrid, roles: [UserRole.ADMIN, UserRole.OPERATOR, UserRole.CUSTOMER] },
+                { id: 'tracking', label: isId ? 'Pelacakan' : 'Tracking', icon: Search, roles: [UserRole.ADMIN, UserRole.OPERATOR, UserRole.CUSTOMER] },
+                { id: 'shipments', label: isId ? 'Pesanan Saya' : 'My Orders', icon: Package, roles: [UserRole.ADMIN, UserRole.OPERATOR, UserRole.CUSTOMER] },
+                { id: 'active_routes', label: isId ? 'Peta Rute Aktif' : 'Active routes', icon: MapPin, roles: [UserRole.ADMIN, UserRole.OPERATOR, UserRole.CUSTOMER] },
+                { id: 'popular_routes', label: isId ? 'Rute Terpopuler' : 'Popular routes', icon: Route, roles: [UserRole.ADMIN, UserRole.OPERATOR, UserRole.CUSTOMER] },
+                { id: 'weather', label: isId ? 'Prakiraan Cuaca' : 'Weather forecast', icon: CloudSun, roles: [UserRole.ADMIN, UserRole.OPERATOR, UserRole.CUSTOMER] },
+                { id: 'exceptions', label: isId ? 'Kendala & Hold' : 'Exceptions', icon: AlertTriangle, roles: [UserRole.ADMIN, UserRole.OPERATOR, UserRole.CUSTOMER] },
+                { id: 'notifications', label: isId ? 'Notifikasi' : 'Notifications', icon: Bell, roles: [UserRole.ADMIN, UserRole.OPERATOR, UserRole.CUSTOMER], badge: unreadNotificationsCount },
+                { id: 'history', label: isId ? 'Riwayat Audit' : 'History', icon: History, roles: [UserRole.ADMIN] },
               ] as const
             )
               .filter((item) => (item.roles as readonly UserRole[]).includes(currentUser.role))
@@ -1054,7 +1155,7 @@ export const App: React.FC = () => {
               <div className="pt-3 mt-3 border-t border-[#DCE4F0] space-y-0.5">
                 {!sidebarCollapsed && (
                   <div className="px-3 pb-1 text-[11px] font-semibold text-[#475569]">
-                    Administration
+                    {isId ? 'Administrasi' : 'Administration'}
                   </div>
                 )}
                 <button
@@ -1067,7 +1168,7 @@ export const App: React.FC = () => {
                   }`}
                 >
                   <Navigation className="w-4 h-4 shrink-0" />
-                  {!sidebarCollapsed && <span>Carriers & Fleet</span>}
+                  {!sidebarCollapsed && <span>{isId ? 'Maskapai & Armada' : 'Carriers & Fleet'}</span>}
                 </button>
                 <button
                   type="button"
@@ -1079,7 +1180,7 @@ export const App: React.FC = () => {
                   }`}
                 >
                   <Building2 className="w-4 h-4 shrink-0" />
-                  {!sidebarCollapsed && <span>Locations & Hubs</span>}
+                  {!sidebarCollapsed && <span>{isId ? 'Lokasi & Pelabuhan' : 'Locations & Hubs'}</span>}
                 </button>
               </div>
             )}
@@ -1091,7 +1192,7 @@ export const App: React.FC = () => {
           <div className="space-y-0.5">
             {!sidebarCollapsed && (
               <div className="px-3 pb-1 text-[11px] font-semibold text-[#475569]">
-                Preferences
+                {isId ? 'Preferensi' : 'Preferences'}
               </div>
             )}
             <button
@@ -1104,7 +1205,7 @@ export const App: React.FC = () => {
               }`}
             >
               <Settings className="w-4 h-4 shrink-0" />
-              {!sidebarCollapsed && <span>Setting</span>}
+              {!sidebarCollapsed && <span>{isId ? 'Pengaturan SLA' : 'Setting'}</span>}
             </button>
             <button
               type="button"
@@ -1116,7 +1217,7 @@ export const App: React.FC = () => {
               }`}
             >
               <HelpCircle className="w-4 h-4 shrink-0" />
-              {!sidebarCollapsed && <span>Architecture Guide</span>}
+              {!sidebarCollapsed && <span>{isId ? 'Panduan Arsitektur' : 'Architecture Guide'}</span>}
             </button>
           </div>
 
@@ -1154,10 +1255,10 @@ export const App: React.FC = () => {
       <div className="flex-1 flex flex-col min-w-0">
         {/* TOP BAR — Clean unclipped section breadcrumb & timestamp on left, actions on right */}
         <header className="h-[58px] bg-white border-b border-[#E2E8F0] px-5 flex items-center justify-between gap-4 shrink-0">
-          {/* Left: Clean Section Name + Timestamp (Never truncates to Lo... or Tr...) */}
+          {/* Left: Clean Section Name + Timestamp */}
           <div className="flex items-center gap-2.5 text-[13px] whitespace-nowrap">
             <span className="font-bold text-[#072D59]">
-              {SECTION_LABELS[activeSection]}
+              {isId ? SECTION_LABELS_ID[activeSection] : SECTION_LABELS_EN[activeSection]}
             </span>
             <span className="text-[#CBD5E1]" aria-hidden="true">·</span>
             <span className="text-[#64748B] tabular-nums text-[12.5px]">
@@ -1165,11 +1266,13 @@ export const App: React.FC = () => {
             </span>
           </div>
 
-          {/* Right: User Badge + Primary Action Button + Sign Out */}
+          {/* Right: Language Switcher + User Badge + Primary Action Button + Sign Out */}
           <div className="flex items-center gap-2.5 shrink-0">
+            <LanguageSwitcher lang={lang} onChange={handleChangeLang} />
+
             <span className="hidden xl:inline-flex items-center gap-1.5 text-[12.5px] text-[#475569] mr-1">
               <strong className="font-semibold text-[#072D59]">{currentUser.name}</strong>
-              <span>({formatEnumLabel(currentUser.role)})</span>
+              <span>({translateRole(currentUser.role, lang)})</span>
             </span>
 
             {canMutate && (
@@ -1179,7 +1282,7 @@ export const App: React.FC = () => {
                 className="px-3.5 py-1.5 rounded-lg bg-[#072D59] hover:bg-[#051F3E] text-white text-[12.5px] font-semibold transition-colors inline-flex items-center gap-1.5 whitespace-nowrap cursor-pointer shadow-2xs"
               >
                 <Plus className="w-4 h-4" />
-                <span>Add Shipping</span>
+                <span>{isId ? 'Tambah Pengiriman' : 'Add Shipping'}</span>
               </button>
             )}
 
@@ -1189,7 +1292,7 @@ export const App: React.FC = () => {
               className="px-2.5 py-1.5 rounded-lg border border-[#E2E8F0] text-[#475569] hover:text-[#072D59] hover:bg-[#F8FAFC] text-[12px] font-medium transition-colors inline-flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
             >
               <LogOut className="w-3.5 h-3.5" />
-              <span>Sign out</span>
+              <span>{isId ? 'Keluar' : 'Sign out'}</span>
             </button>
           </div>
         </header>
@@ -1206,7 +1309,7 @@ export const App: React.FC = () => {
               onClick={() => setToastMessage(null)}
               className="text-xs text-[#DBF2FC] underline ml-4"
             >
-              Close
+              {isId ? 'Tutup' : 'Close'}
             </button>
           </div>
         )}
@@ -1218,25 +1321,15 @@ export const App: React.FC = () => {
           =================================================================== */}
           {activeSection === 'overview' && (
             <div className="space-y-4">
-              {/* Page Header matching Yuke.inc */}
-              <div>
-                <h1 className="text-[21px] font-bold text-[#0F172A] tracking-tight">
-                  Logistics Overview
-                </h1>
-                <p className="text-[13px] text-[#64748B]">
-                  Track shipments, corridor capacity, and delivery performance ({settings.primary_route_focus} · {settings.delay_threshold_hours}h threshold)
-                </p>
-              </div>
-
-              {/* Single 4-Column Row of KPI Cards (md:grid-cols-4 so all 4 sit in 1 row like Yuke.inc) */}
+              {/* Single 4-Column Row of KPI Cards */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
                 <KpiStatCard
                   percentage={kpiMetrics.onTimeRate}
                   barColorHex="#1E40AF"
                   icon={<CheckCircle2 className="w-4 h-4" />}
-                  label="On-Time Delivery"
+                  label={isId ? 'Pengiriman Tepat Waktu' : 'On-Time Delivery'}
                   primaryValue={`${kpiMetrics.onTimeCount}/${kpiMetrics.total}`}
-                  unitLabel="Shipped"
+                  unitLabel={isId ? 'Terkirim' : 'Shipped'}
                   onClick={() => {
                     setStatusFilter('ALL');
                     setActiveSection('shipments');
@@ -1247,9 +1340,9 @@ export const App: React.FC = () => {
                   percentage={kpiMetrics.inTransitRate}
                   barColorHex="#E11D48"
                   icon={<Navigation className="w-4 h-4" />}
-                  label="In Transit"
+                  label={isId ? 'Sedang Dikirim' : 'In Transit'}
                   primaryValue={`${kpiMetrics.inTransit}/${kpiMetrics.total}`}
-                  unitLabel="Active"
+                  unitLabel={isId ? 'Aktif' : 'Active'}
                   onClick={() => {
                     setStatusFilter(ShipmentStatus.IN_TRANSIT);
                     setActiveSection('shipments');
@@ -1260,9 +1353,9 @@ export const App: React.FC = () => {
                   percentage={kpiMetrics.delayedRate}
                   barColorHex="#F59E0B"
                   icon={<Clock className="w-4 h-4" />}
-                  label="Delayed Shipments"
+                  label={isId ? 'Pengiriman Terlambat' : 'Delayed Shipments'}
                   primaryValue={`${kpiMetrics.delayedCount}/${kpiMetrics.total}`}
-                  unitLabel="Delayed"
+                  unitLabel={isId ? 'Terlambat' : 'Delayed'}
                   onClick={() => {
                     setStatusFilter('DELAYED');
                     setActiveSection('shipments');
@@ -1273,14 +1366,14 @@ export const App: React.FC = () => {
                   percentage={kpiMetrics.openExceptionRate}
                   barColorHex="#0D9488"
                   icon={<AlertTriangle className="w-4 h-4" />}
-                  label="Open Exceptions"
+                  label={isId ? 'Kendala Aktif' : 'Open Exceptions'}
                   primaryValue={`${kpiMetrics.openExceptions}/${kpiMetrics.totalExceptions}`}
-                  unitLabel="Resolved"
+                  unitLabel={isId ? 'Kendala' : 'Resolved'}
                   onClick={() => setActiveSection('exceptions')}
                 />
               </div>
 
-              {/* Filter & Search Toolbar Row matching Yuke.inc */}
+              {/* Filter & Search Toolbar Row */}
               <div className="flex flex-wrap items-center justify-between gap-2.5">
                 <div className="flex items-center gap-2.5 flex-1 min-w-[260px]">
                   <select
@@ -1292,10 +1385,10 @@ export const App: React.FC = () => {
                     }}
                     className="bg-white border border-[#E2E8F0] rounded-xl px-3.5 py-2 text-[12.5px] font-semibold text-[#0F172A] shadow-2xs focus:outline-none focus:border-[#072D59]"
                   >
-                    <option value="ALL">Shipping (All)</option>
-                    <option value={TransportMode.SEA}>Sea Freight</option>
-                    <option value={TransportMode.AIR}>Air Freight</option>
-                    <option value={TransportMode.ROAD}>Road Freight</option>
+                    <option value="ALL">{isId ? 'Semua Moda Pengiriman' : 'Shipping (All)'}</option>
+                    <option value={TransportMode.SEA}>{isId ? 'Kargo Laut (SEA)' : 'Sea Freight'}</option>
+                    <option value={TransportMode.AIR}>{isId ? 'Kargo Udara (AIR)' : 'Air Freight'}</option>
+                    <option value={TransportMode.ROAD}>{isId ? 'Kargo Darat (ROAD)' : 'Road Freight'}</option>
                   </select>
 
                   <div className="relative flex-1">
@@ -1308,7 +1401,11 @@ export const App: React.FC = () => {
                         setSearchQuery(e.target.value);
                         setCurrentPage(1);
                       }}
-                      placeholder="Search shipment DND-2026-..., route, carrier, city..."
+                      placeholder={
+                        isId
+                          ? 'Cari nomor resi DND-2026-..., rute, maskapai, atau kota...'
+                          : 'Search shipment DND-2026-..., route, carrier, city...'
+                      }
                       className="w-full bg-white border border-[#E2E8F0] rounded-xl pl-9 pr-3 py-2 text-[12.5px] text-[#0F172A] placeholder:text-[#94A3B8] shadow-2xs focus:outline-none focus:border-[#072D59]"
                     />
                   </div>
@@ -1328,7 +1425,7 @@ export const App: React.FC = () => {
                             : 'text-[#64748B] hover:text-[#072D59]'
                         }`}
                       >
-                        {seg}
+                        {seg === 'all' ? (isId ? 'Semua' : 'all') : seg}
                       </button>
                     )
                   )}
@@ -1339,17 +1436,20 @@ export const App: React.FC = () => {
               <ShipmentsAnalyticsChart
                 shipments={filteredShipments}
                 carriers={carriers}
+                lang={lang}
               />
 
-              {/* Popular Routes Section matching Yuke.inc */}
+              {/* Popular Routes Section */}
               <div className="space-y-2.5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <h2 className="text-[16px] font-bold text-[#0F172A]">
-                      Popular routes
+                      {isId ? 'Rute Pengiriman Terpopuler (Seluruh Dunia)' : 'Popular routes'}
                     </h2>
                     <p className="text-[12px] text-[#64748B]">
-                      Ranked by shipment volume · November 2026
+                      {isId
+                        ? 'Diurutkan berdasarkan volume pengiriman tertinggi · November 2026'
+                        : 'Ranked by shipment volume · November 2026'}
                     </p>
                   </div>
 
@@ -1359,28 +1459,30 @@ export const App: React.FC = () => {
                     className="px-3.5 py-1.5 rounded-xl border border-[#E2E8F0] bg-white hover:bg-[#F8FAFC] text-[#0F172A] text-[12px] font-semibold inline-flex items-center gap-1.5 shadow-2xs transition-colors"
                   >
                     <Download className="w-3.5 h-3.5" />
-                    <span>Export</span>
+                    <span>{isId ? 'Unduh CSV' : 'Export'}</span>
                   </button>
                 </div>
 
                 <div className="bg-white border border-[#E2E8F0] rounded-2xl overflow-hidden shadow-2xs">
                   {popularRoutes.length === 0 ? (
                     <div className="p-10 text-center text-[#64748B] text-[13px]">
-                      No routes match the current filter criteria. Try resetting the mode or time range filter.
+                      {isId
+                        ? 'Tidak ada rute yang cocok dengan filter saat ini. Silakan atur ulang filter moda atau rentang waktu.'
+                        : 'No routes match the current filter criteria. Try resetting the mode or time range filter.'}
                     </div>
                   ) : (
                     <div className="overflow-x-auto">
                       <table className="w-full text-left border-collapse text-[12.5px]">
                         <thead>
                           <tr className="border-b border-[#EEF2F7] text-[#64748B] text-[11.5px] bg-[#FAFBFD]">
-                            <th className="py-3 px-4 font-medium">Route</th>
-                            <th className="py-3 px-3 font-medium">Carrier / vehicle</th>
-                            <th className="py-3 px-3 font-medium">Status</th>
-                            <th className="py-3 px-3 font-medium">Mode</th>
-                            <th className="py-3 px-3 font-medium">Distance</th>
-                            <th className="py-3 px-3 font-medium text-right">Shipments</th>
-                            <th className="py-3 px-3 font-medium text-right">Avg. transit</th>
-                            <th className="py-3 px-4 font-medium text-right">On-time rate</th>
+                            <th className="py-3 px-4 font-medium">{isId ? 'Rute' : 'Route'}</th>
+                            <th className="py-3 px-3 font-medium">{isId ? 'Maskapai / Armada' : 'Carrier / vehicle'}</th>
+                            <th className="py-3 px-3 font-medium">{isId ? 'Status' : 'Status'}</th>
+                            <th className="py-3 px-3 font-medium">{isId ? 'Moda' : 'Mode'}</th>
+                            <th className="py-3 px-3 font-medium">{isId ? 'Jarak' : 'Distance'}</th>
+                            <th className="py-3 px-3 font-medium text-right">{isId ? 'Pengiriman' : 'Shipments'}</th>
+                            <th className="py-3 px-3 font-medium text-right">{isId ? 'Rata-rata Transit' : 'Avg. transit'}</th>
+                            <th className="py-3 px-4 font-medium text-right">{isId ? 'Tepat Waktu' : 'On-time rate'}</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-[#F1F5F9]">
@@ -1399,7 +1501,6 @@ export const App: React.FC = () => {
                                 }}
                                 className="hover:bg-[#F8FAFC] cursor-pointer transition-colors"
                               >
-                                {/* Route Column (Initials badge + Origin To Destination + route code) */}
                                 <td className="py-3 px-4">
                                   <div className="flex items-center gap-3">
                                     <div className="w-9 h-9 rounded-lg bg-[#FFF4ED] text-[#C2410C] font-bold text-[11.5px] flex items-center justify-center shrink-0 border border-[#FFEDD5]">
@@ -1408,7 +1509,7 @@ export const App: React.FC = () => {
                                     <div>
                                       <div className="font-bold text-[#0F172A] whitespace-nowrap">
                                         {row.origin.city}{' '}
-                                        <span className="text-[#94A3B8] font-normal">To</span>{' '}
+                                        <span className="text-[#94A3B8] font-normal">{isId ? 'ke' : 'To'}</span>{' '}
                                         {row.destination.city}
                                       </div>
                                       <div className="text-[11px] text-[#64748B] tabular-nums">
@@ -1418,10 +1519,9 @@ export const App: React.FC = () => {
                                   </div>
                                 </td>
 
-                                {/* Carrier / Vehicle Column (Real Vehicle Photo + Carrier Name + Vehicle Model) */}
                                 <td className="py-3 px-3">
                                   <div className="flex items-center gap-3">
-                                    <ModeIconChip mode={row.mode} size="md" />
+                                    <ModeIconChip mode={row.mode} size="md" lang={lang} />
                                     <div>
                                       <div className="font-bold text-[#0F172A] whitespace-nowrap">
                                         {row.carrier.name}
@@ -1433,36 +1533,31 @@ export const App: React.FC = () => {
                                   </div>
                                 </td>
 
-                                {/* Status Badge */}
                                 <td className="py-3 px-3">
                                   <ShipmentStatusBadge
                                     status={row.representative_status}
                                     isDelayed={row.is_delayed}
+                                    lang={lang}
                                   />
                                 </td>
 
-                                {/* Mode */}
                                 <td className="py-3 px-3 whitespace-nowrap text-[12px] text-[#64748B]">
-                                  <span className="text-[#64748B]">{formatEnumLabel(row.mode)}</span>{' '}
-                                  <strong className="text-[#0F172A]">{row.mode_label}</strong>
+                                  <span className="text-[#64748B]">{translateModeShort(row.mode, lang)}</span>{' '}
+                                  <strong className="text-[#0F172A]">{translateModeCorridorLabel(row.mode, lang)}</strong>
                                 </td>
 
-                                {/* Distance */}
                                 <td className="py-3 px-3 tabular-nums font-bold text-[#0F172A] whitespace-nowrap">
                                   {row.distance_mi.toLocaleString()} mi
                                 </td>
 
-                                {/* Shipments Count */}
                                 <td className="py-3 px-3 text-right tabular-nums font-bold text-[#0F172A]">
                                   {row.shipment_count}
                                 </td>
 
-                                {/* Avg Transit */}
                                 <td className="py-3 px-3 text-right tabular-nums font-bold text-[#0F172A] whitespace-nowrap">
-                                  {row.avg_transit_days} days
+                                  {row.avg_transit_days} {isId ? 'hari' : 'days'}
                                 </td>
 
-                                {/* On-Time Rate */}
                                 <td className="py-3 px-4 text-right tabular-nums font-bold text-[#0F172A]">
                                   {row.on_time_rate}%
                                 </td>
@@ -1485,10 +1580,12 @@ export const App: React.FC = () => {
             <div className="space-y-5">
               <div>
                 <h1 className="text-[21px] font-bold text-[#072D59]">
-                  Shipment Tracking & Timeline Inspector
+                  {isId ? 'Pelacakan Pengiriman & Pemeriksa Kronologi' : 'Shipment Tracking & Timeline Inspector'}
                 </h1>
                 <p className="text-[13px] text-[#6B7A93]">
-                  Look up any shipment by reference number (e.g. DND-2026-000101) to inspect chronological events, current location, and deterministic ETA rules
+                  {isId
+                    ? 'Cari pengiriman berdasarkan nomor resi (contoh: DND-2026-000101) untuk memeriksa riwayat titik pantau, lokasi terkini, dan kalkulasi ETA'
+                    : 'Look up any shipment by reference number (e.g. DND-2026-000101) to inspect chronological events, current location, and deterministic ETA rules'}
                 </p>
               </div>
 
@@ -1507,7 +1604,9 @@ export const App: React.FC = () => {
                       setSelectedShipment(found);
                     } else {
                       showToast(
-                        `Shipment "${trackingLookupInput}" not found or unauthorized for ${currentUser.role}.`
+                        isId
+                          ? `Pengiriman "${trackingLookupInput}" tidak ditemukan atau tidak memiliki akses untuk peran ${translateRole(currentUser.role, lang)}.`
+                          : `Shipment "${trackingLookupInput}" not found or unauthorized for ${currentUser.role}.`
                       );
                     }
                   }}
@@ -1519,7 +1618,11 @@ export const App: React.FC = () => {
                       type="text"
                       value={trackingLookupInput}
                       onChange={(e) => setTrackingLookupInput(e.target.value)}
-                      placeholder="Enter Shipment Number (e.g. DND-2026-000101, DND-2026-000201, DND-2026-000301)..."
+                      placeholder={
+                        isId
+                          ? 'Masukkan Nomor Resi Pengiriman (contoh: DND-2026-000101, DND-2026-000201, DND-2026-000301)...'
+                          : 'Enter Shipment Number (e.g. DND-2026-000101, DND-2026-000201, DND-2026-000301)...'
+                      }
                       className="w-full bg-[#F4F7FB] border border-[#E3E9F3] rounded-lg pl-10 pr-4 py-2 text-[13px] font-mono-tabular text-[#072D59] focus:bg-white focus:border-[#072D59] focus:outline-none"
                     />
                   </div>
@@ -1527,32 +1630,72 @@ export const App: React.FC = () => {
                     type="submit"
                     className="px-4 py-2 rounded-lg bg-[#072D59] text-white text-[13px] font-semibold hover:bg-[#051F3E]"
                   >
-                    Inspect Timeline
+                    {isId ? 'Periksa Kronologi' : 'Inspect Timeline'}
                   </button>
                 </form>
 
-                {/* Quick sample pills */}
+                {/* Quick sample pills across Worldwide Sea, Air, and Road corridors */}
                 <div className="flex flex-wrap items-center gap-2 text-[12px]">
-                  <span className="text-[#6B7A93]">Quick Select:</span>
-                  {roleScopedShipments.slice(0, 6).map((sh) => (
-                    <button
-                      key={sh.id}
-                      type="button"
-                      onClick={() => {
-                        setTrackingLookupInput(sh.shipment_number);
-                        setSelectedShipment(sh);
-                      }}
-                      className="px-2.5 py-1 rounded-md bg-[#DBF2FC] text-[#072D59] font-mono-tabular font-semibold hover:bg-[#B8E2F8] transition-colors"
-                    >
-                      {sh.shipment_number} ({sh.mode})
-                    </button>
-                  ))}
+                  <span className="text-[#6B7A93]">{isId ? 'Pilih Cepat:' : 'Quick Select:'}</span>
+                  {[
+                    roleScopedShipments.find((s) => s.id === 101),
+                    roleScopedShipments.find((s) => s.id === 102),
+                    roleScopedShipments.find((s) => s.id === 105),
+                    roleScopedShipments.find((s) => s.id === 107),
+                    roleScopedShipments.find((s) => s.id === 202),
+                    roleScopedShipments.find((s) => s.id === 204),
+                    roleScopedShipments.find((s) => s.id === 303),
+                  ]
+                    .filter((s): s is Shipment => Boolean(s))
+                    .slice(0, 6)
+                    .map((sh) => (
+                      <button
+                        key={sh.id}
+                        type="button"
+                        onClick={() => {
+                          setTrackingLookupInput(sh.shipment_number);
+                          setSelectedShipment(sh);
+                        }}
+                        className="px-2.5 py-1 rounded-md bg-[#DBF2FC] text-[#072D59] font-mono-tabular font-semibold hover:bg-[#B8E2F8] transition-colors"
+                      >
+                        {sh.shipment_number} ({sh.mode})
+                      </button>
+                    ))}
                 </div>
               </div>
 
-              {/* Active Shipments Cards with 5-Stage Progress Bar */}
+              {/* Active Worldwide Multimodal Shipments Cards with 5-Stage Progress Bar */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {roleScopedShipments.slice(0, 9).map((sh) => {
+                {([
+                  roleScopedShipments.find((s) => s.id === 101),
+                  roleScopedShipments.find((s) => s.id === 102),
+                  roleScopedShipments.find((s) => s.id === 105),
+                  roleScopedShipments.find((s) => s.id === 106),
+                  roleScopedShipments.find((s) => s.id === 107),
+                  roleScopedShipments.find((s) => s.id === 104),
+                  roleScopedShipments.find((s) => s.id === 201),
+                  roleScopedShipments.find((s) => s.id === 202),
+                  roleScopedShipments.find((s) => s.id === 204),
+                  roleScopedShipments.find((s) => s.id === 302),
+                  roleScopedShipments.find((s) => s.id === 303),
+                  roleScopedShipments.find((s) => s.id === 304),
+                ].filter((s): s is Shipment => Boolean(s)).length >= 6
+                  ? [
+                      roleScopedShipments.find((s) => s.id === 101),
+                      roleScopedShipments.find((s) => s.id === 102),
+                      roleScopedShipments.find((s) => s.id === 105),
+                      roleScopedShipments.find((s) => s.id === 106),
+                      roleScopedShipments.find((s) => s.id === 107),
+                      roleScopedShipments.find((s) => s.id === 104),
+                      roleScopedShipments.find((s) => s.id === 201),
+                      roleScopedShipments.find((s) => s.id === 202),
+                      roleScopedShipments.find((s) => s.id === 204),
+                      roleScopedShipments.find((s) => s.id === 302),
+                      roleScopedShipments.find((s) => s.id === 303),
+                      roleScopedShipments.find((s) => s.id === 304),
+                    ].filter((s): s is Shipment => Boolean(s))
+                  : roleScopedShipments.slice(0, 9)
+                ).map((sh) => {
                   const eta = EtaService.evaluate(
                     sh.expected_arrival,
                     sh.estimated_arrival,
@@ -1584,11 +1727,12 @@ export const App: React.FC = () => {
                         <ShipmentStatusBadge
                           status={sh.status}
                           isDelayed={eta.is_delayed && sh.status !== ShipmentStatus.DELIVERED}
+                          lang={lang}
                         />
                       </div>
 
                       <div className="flex items-center gap-2.5">
-                        <ModeIconChip mode={sh.mode} size="sm" />
+                        <ModeIconChip mode={sh.mode} size="sm" lang={lang} />
                         <div className="min-w-0">
                           <div className="text-[13px] font-bold text-[#072D59] truncate">
                             {orig?.city} ({orig?.code}) → {dest?.city} ({dest?.code})
@@ -1600,13 +1744,17 @@ export const App: React.FC = () => {
                       </div>
 
                       <div className="text-[12px] text-[#1E293B] bg-[#F8FAFC] px-2.5 py-1.5 rounded-lg border border-[#E2E8F0] truncate">
-                        <span className="font-semibold text-[#072D59]">Cargo:</span> {sh.cargo_type}
+                        <span className="font-semibold text-[#072D59]">{isId ? 'Muatan:' : 'Cargo:'}</span> {sh.cargo_type}
                       </div>
 
                       {/* Visual Lifecycle Progress Bar */}
                       <div className="space-y-1">
                         <div className="flex items-center justify-between text-[11px] tabular-nums text-[#475569]">
-                          <span>Stage {stageIdx + 1} of 5 · {formatEnumLabel(sh.status)}</span>
+                          <span>
+                            {isId
+                              ? `Tahap ${stageIdx + 1} dari 5 · ${translateShipmentStatus(sh.status, lang)}`
+                              : `Stage ${stageIdx + 1} of 5 · ${formatEnumLabel(sh.status)}`}
+                          </span>
                           <span className="font-bold text-[#072D59]">{progressPct}%</span>
                         </div>
                         <div className="w-full h-1.5 bg-[#E2E8F0] rounded-full overflow-hidden">
@@ -1624,9 +1772,9 @@ export const App: React.FC = () => {
                       </div>
 
                       <div className="pt-2 border-t border-[#E3E9F3] flex items-center justify-between text-[12px]">
-                        <SeverityBadge severity={eta.severity} />
+                        <SeverityBadge severity={eta.severity} lang={lang} />
                         <span className="text-[#072D59] font-bold">
-                          Inspect Timeline →
+                          {isId ? 'Lihat Kronologi →' : 'Inspect Timeline →'}
                         </span>
                       </div>
                     </div>
@@ -1645,10 +1793,12 @@ export const App: React.FC = () => {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h1 className="text-[21px] font-bold text-[#072D59] tracking-tight">
-                    My Orders & Shipments Directory
+                    {isId ? 'Daftar Pesanan & Direktori Pengiriman' : 'My Orders & Shipments Directory'}
                   </h1>
                   <p className="text-[13px] text-[#64748B]">
-                    Operational multimodal shipments ledger with status tabs, carrier manifest details, and pagination
+                    {isId
+                      ? 'Buku besar operasional pengiriman multimoda seluruh dunia lengkap dengan filter status, detail manifes armada, dan halaman'
+                      : 'Operational multimodal shipments ledger with status tabs, carrier manifest details, and pagination'}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -1658,7 +1808,7 @@ export const App: React.FC = () => {
                     className="px-3.5 py-2 rounded-lg border border-[#CBD5E1] bg-white hover:bg-[#F8FAFC] text-[#072D59] text-[12px] font-semibold inline-flex items-center gap-1.5 cursor-pointer transition-colors"
                   >
                     <Download className="w-3.5 h-3.5" />
-                    <span>Export CSV</span>
+                    <span>{isId ? 'Unduh CSV' : 'Export CSV'}</span>
                   </button>
                   {canMutate && (
                     <button
@@ -1667,7 +1817,7 @@ export const App: React.FC = () => {
                       className="px-3.5 py-2 rounded-lg bg-[#072D59] hover:bg-[#051F3E] text-white text-[12px] font-semibold inline-flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
                     >
                       <Plus className="w-3.5 h-3.5" />
-                      <span>New shipment</span>
+                      <span>{isId ? 'Pengiriman Baru' : 'New shipment'}</span>
                     </button>
                   )}
                 </div>
@@ -1682,17 +1832,17 @@ export const App: React.FC = () => {
                       [
                         {
                           id: 'ALL',
-                          label: 'All Orders',
+                          label: isId ? 'Semua Pesanan' : 'All Orders',
                           count: roleScopedShipments.length,
                         },
                         {
                           id: ShipmentStatus.IN_TRANSIT,
-                          label: 'In Transit',
+                          label: isId ? 'Dalam Perjalanan' : 'In Transit',
                           count: roleScopedShipments.filter((s) => s.status === ShipmentStatus.IN_TRANSIT).length,
                         },
                         {
                           id: 'DELAYED',
-                          label: 'Delayed / Hold',
+                          label: isId ? 'Terlambat / Tertahan' : 'Delayed / Hold',
                           count: roleScopedShipments.filter((s) => {
                             const ev = EtaService.evaluate(s.expected_arrival, s.estimated_arrival, settings);
                             return ev.is_delayed && s.status !== ShipmentStatus.DELIVERED;
@@ -1700,17 +1850,17 @@ export const App: React.FC = () => {
                         },
                         {
                           id: ShipmentStatus.BOOKED,
-                          label: 'Booked',
+                          label: isId ? 'Dipesan' : 'Booked',
                           count: roleScopedShipments.filter((s) => s.status === ShipmentStatus.BOOKED).length,
                         },
                         {
                           id: ShipmentStatus.PICKED_UP,
-                          label: 'Picked Up',
+                          label: isId ? 'Diambil' : 'Picked Up',
                           count: roleScopedShipments.filter((s) => s.status === ShipmentStatus.PICKED_UP).length,
                         },
                         {
                           id: ShipmentStatus.DELIVERED,
-                          label: 'Delivered',
+                          label: isId ? 'Terkirim' : 'Delivered',
                           count: roleScopedShipments.filter((s) => s.status === ShipmentStatus.DELIVERED).length,
                         },
                       ] as const
@@ -1750,7 +1900,15 @@ export const App: React.FC = () => {
                   </div>
 
                   <span className="text-[11.5px] text-[#64748B] tabular-nums">
-                    Showing <strong className="text-[#072D59]">{filteredShipments.length}</strong> matching orders
+                    {isId ? (
+                      <>
+                        Menampilkan <strong className="text-[#072D59]">{filteredShipments.length}</strong> pesanan yang cocok
+                      </>
+                    ) : (
+                      <>
+                        Showing <strong className="text-[#072D59]">{filteredShipments.length}</strong> matching orders
+                      </>
+                    )}
                   </span>
                 </div>
 
@@ -1765,7 +1923,11 @@ export const App: React.FC = () => {
                         setSearchQuery(e.target.value);
                         setCurrentPage(1);
                       }}
-                      placeholder="Search by DND-2026-..., customer, vessel/flight/truck, cargo, or city..."
+                      placeholder={
+                        isId
+                          ? 'Cari nomor resi DND-2026-..., pelanggan, kapal/pesawat/truk, muatan, atau kota...'
+                          : 'Search by DND-2026-..., customer, vessel/flight/truck, cargo, or city...'
+                      }
                       className="w-full bg-[#F8FAFC] border border-[#DCE4F0] focus:bg-white focus:border-[#072D59] focus:outline-none rounded-lg pl-9 pr-3 py-2 text-[12.5px] text-[#0F172A]"
                     />
                   </div>
@@ -1780,10 +1942,10 @@ export const App: React.FC = () => {
                       }}
                       className="bg-[#F8FAFC] border border-[#DCE4F0] rounded-lg px-3 py-2 text-[12px] font-semibold text-[#072D59] cursor-pointer"
                     >
-                      <option value="ALL">All Modes (Sea / Air / Road)</option>
-                      <option value={TransportMode.SEA}>Sea Freight (Vessel)</option>
-                      <option value={TransportMode.AIR}>Air Freight (Aircraft)</option>
-                      <option value={TransportMode.ROAD}>Road Freight (Truck)</option>
+                      <option value="ALL">{isId ? 'Semua Moda (Laut / Udara / Darat)' : 'All Modes (Sea / Air / Road)'}</option>
+                      <option value={TransportMode.SEA}>{isId ? 'Kargo Laut (Kapal)' : 'Sea Freight (Vessel)'}</option>
+                      <option value={TransportMode.AIR}>{isId ? 'Kargo Udara (Pesawat)' : 'Air Freight (Aircraft)'}</option>
+                      <option value={TransportMode.ROAD}>{isId ? 'Kargo Darat (Truk)' : 'Road Freight (Truck)'}</option>
                     </select>
 
                     <select
@@ -1795,11 +1957,11 @@ export const App: React.FC = () => {
                       }}
                       className="bg-[#F8FAFC] border border-[#DCE4F0] rounded-lg px-3 py-2 text-[12px] font-semibold text-[#072D59] cursor-pointer"
                     >
-                      <option value="ALL">Status: All</option>
-                      <option value="DELAYED">Status: Delayed Only</option>
+                      <option value="ALL">{isId ? 'Status: Semua' : 'Status: All'}</option>
+                      <option value="DELAYED">{isId ? 'Status: Hanya Terlambat' : 'Status: Delayed Only'}</option>
                       {Object.values(ShipmentStatus).map((st) => (
                         <option key={st} value={st}>
-                          Status: {formatEnumLabel(st)}
+                          Status: {translateShipmentStatus(st, lang)}
                         </option>
                       ))}
                     </select>
@@ -1816,25 +1978,27 @@ export const App: React.FC = () => {
                     >
                       <ArrowUpDown className="w-3.5 h-3.5 text-[#072D59]" />
                       <span>
-                        Sort: {sortField === 'expected_arrival' ? 'Arrival Date' : 'Shipment #'}
+                        {isId
+                          ? `Urutkan: ${sortField === 'expected_arrival' ? 'Tanggal Tiba' : 'No. Resi'}`
+                          : `Sort: ${sortField === 'expected_arrival' ? 'Arrival Date' : 'Shipment #'}`}
                       </span>
                     </button>
                   </div>
                 </div>
               </div>
 
-              {/* Clean, Balanced Shipments Table (Zero Horizontal Clipping on Laptop & Desktop) */}
+              {/* Clean, Balanced Shipments Table */}
               <div className="bg-white border border-[#DCE4F0] rounded-xl overflow-hidden shadow-2xs">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse text-[12px]">
                     <thead>
                       <tr className="bg-[#F4F7FB] border-b border-[#DCE4F0] text-[#475569] text-[11px] uppercase tracking-wider">
-                        <th className="py-3 pl-4 pr-2.5 font-bold">Shipment & Customer</th>
-                        <th className="py-3 px-2.5 font-bold">Origin → Destination</th>
-                        <th className="py-3 px-2.5 font-bold">Carrier & Fleet</th>
-                        <th className="py-3 px-2.5 font-bold text-center">ETA & Schedule</th>
-                        <th className="py-3 px-2.5 font-bold text-center">Status</th>
-                        <th className="py-3 pl-2.5 pr-4 font-bold text-center w-[96px]">Action</th>
+                        <th className="py-3 pl-4 pr-2.5 font-bold">{isId ? 'No. Resi & Pelanggan' : 'Shipment & Customer'}</th>
+                        <th className="py-3 px-2.5 font-bold">{isId ? 'Asal → Tujuan' : 'Origin → Destination'}</th>
+                        <th className="py-3 px-2.5 font-bold">{isId ? 'Maskapai & Armada' : 'Carrier & Fleet'}</th>
+                        <th className="py-3 px-2.5 font-bold text-center">{isId ? 'ETA & Jadwal' : 'ETA & Schedule'}</th>
+                        <th className="py-3 px-2.5 font-bold text-center">{isId ? 'Status' : 'Status'}</th>
+                        <th className="py-3 pl-2.5 pr-4 font-bold text-center w-[96px]">{isId ? 'Aksi' : 'Action'}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#E3E9F3]">
@@ -1888,10 +2052,10 @@ export const App: React.FC = () => {
                               </div>
                             </td>
 
-                            {/* 3. Carrier & Vehicle (Truncated cleanly so it NEVER wraps into vertical lines) */}
+                            {/* 3. Carrier & Vehicle */}
                             <td className="py-2.5 px-2.5 align-middle max-w-[185px]">
                               <div className="flex items-center gap-2 min-w-0">
-                                <ModeIconChip mode={sh.mode} size="sm" />
+                                <ModeIconChip mode={sh.mode} size="sm" lang={lang} />
                                 <div className="min-w-0">
                                   <div
                                     className="font-semibold text-[#072D59] text-[12px] truncate"
@@ -1921,7 +2085,7 @@ export const App: React.FC = () => {
                                 UTC
                               </div>
                               <div className="mt-0.5 flex justify-center">
-                                <SeverityBadge severity={eta.severity} />
+                                <SeverityBadge severity={eta.severity} lang={lang} />
                               </div>
                             </td>
 
@@ -1930,6 +2094,7 @@ export const App: React.FC = () => {
                               <ShipmentStatusBadge
                                 status={sh.status}
                                 isDelayed={isDelayed}
+                                lang={lang}
                               />
                             </td>
 
@@ -1943,7 +2108,7 @@ export const App: React.FC = () => {
                                 }}
                                 className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#F4F7FB] hover:bg-[#072D59] text-[#072D59] hover:text-white border border-[#DCE4F0] hover:border-[#072D59] text-[11px] font-semibold transition-colors cursor-pointer"
                               >
-                                <span>Inspect</span>
+                                <span>{isId ? 'Detail' : 'Inspect'}</span>
                                 <span>→</span>
                               </button>
                             </td>
@@ -1957,14 +2122,16 @@ export const App: React.FC = () => {
                 {/* Pagination Bar */}
                 <div className="px-4 py-3 bg-[#F8FAFC] border-t border-[#DCE4F0] flex flex-wrap items-center justify-between gap-2 text-[12px]">
                   <span className="text-[#475569] tabular-nums">
-                    Showing{' '}
+                    {isId ? 'Menampilkan ' : 'Showing '}
                     <strong className="text-[#072D59]">
                       {filteredShipments.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1}–
                       {Math.min(currentPage * PAGE_SIZE, filteredShipments.length)}
                     </strong>{' '}
-                    of <strong className="text-[#072D59]">{filteredShipments.length}</strong> shipments
+                    {isId ? 'dari ' : 'of '}
+                    <strong className="text-[#072D59]">{filteredShipments.length}</strong>{' '}
+                    {isId ? 'pengiriman' : 'shipments'}
                     <span className="text-[#94A3B8] ml-1.5">
-                      (Halaman {currentPage} dari {totalPages})
+                      ({isId ? `Halaman ${currentPage} dari ${totalPages}` : `Page ${currentPage} of ${totalPages}`})
                     </span>
                   </span>
                   <div className="flex items-center gap-1.5">
@@ -1974,7 +2141,7 @@ export const App: React.FC = () => {
                       onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                       className="px-3 py-1 rounded-lg border border-[#CBD5E1] bg-white hover:bg-[#F1F5F9] disabled:opacity-40 font-semibold text-[#072D59] cursor-pointer"
                     >
-                      Previous
+                      {isId ? 'Sebelumnya' : 'Previous'}
                     </button>
                     {Array.from({ length: totalPages }, (_, idx) => idx + 1).map((pageNum) => (
                       <button
@@ -1986,7 +2153,7 @@ export const App: React.FC = () => {
                             ? 'bg-[#072D59] text-white'
                             : 'bg-white border border-[#CBD5E1] text-[#072D59] hover:bg-[#F1F5F9]'
                         }`}
-                        title={`Go to Page ${pageNum}`}
+                        title={isId ? `Ke Halaman ${pageNum}` : `Go to Page ${pageNum}`}
                       >
                         {pageNum}
                       </button>
@@ -1997,7 +2164,7 @@ export const App: React.FC = () => {
                       onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                       className="px-3 py-1 rounded-lg border border-[#CBD5E1] bg-white hover:bg-[#F1F5F9] disabled:opacity-40 font-semibold text-[#072D59] cursor-pointer"
                     >
-                      Next
+                      {isId ? 'Berikutnya' : 'Next'}
                     </button>
                   </div>
                 </div>
@@ -2013,27 +2180,35 @@ export const App: React.FC = () => {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h1 className="text-[21px] font-bold text-[#072D59]">
-                    Active Multimodal Routes Map
+                    {isId ? 'Peta Rute Multimoda Aktif (Seluruh Dunia)' : 'Active Multimodal Routes Map'}
                   </h1>
                   <p className="text-[13.5px] text-[#475569]">
-                    Use the <strong className="text-[#072D59]">Layer Toggle</strong> panel on the top-right of the map to independently show or hide <strong className="text-[#072D59]">Sea</strong>, <strong className="text-[#072D59]">Air</strong>, and <strong className="text-[#072D59]">Road</strong> corridors, logistics hubs, or delayed shipments.
+                    {isId ? (
+                      <>
+                        Gunakan panel <strong className="text-[#072D59]">Filter Lapisan Peta</strong> di kanan atas peta untuk menampilkan atau menyembunyikan koridor <strong className="text-[#072D59]">Laut</strong>, <strong className="text-[#072D59]">Udara</strong>, dan <strong className="text-[#072D59]">Darat</strong>, pelabuhan/bandara, atau pengiriman yang terlambat.
+                      </>
+                    ) : (
+                      <>
+                        Use the <strong className="text-[#072D59]">Layer Toggle</strong> panel on the top-right of the map to independently show or hide <strong className="text-[#072D59]">Sea</strong>, <strong className="text-[#072D59]">Air</strong>, and <strong className="text-[#072D59]">Road</strong> corridors, logistics hubs, or delayed shipments.
+                      </>
+                    )}
                   </p>
                 </div>
 
                 <div className="flex items-center gap-2 text-[12px] tabular-nums bg-white px-3.5 py-2 rounded-xl border border-[#DCE4F0]">
-                  <span className="text-[#475569]">Active Corridors:</span>
+                  <span className="text-[#475569]">{isId ? 'Koridor Aktif:' : 'Active Corridors:'}</span>
                   <strong className="text-[#072D59]">{roleScopedShipments.length} total</strong>
                   <span className="text-[#CBD5E1]">·</span>
                   <span className="text-[#072D59] font-medium">
-                    Sea {roleScopedShipments.filter((s) => s.mode === TransportMode.SEA).length}
+                    {isId ? 'Laut' : 'Sea'} {roleScopedShipments.filter((s) => s.mode === TransportMode.SEA).length}
                   </span>
                   <span className="text-[#CBD5E1]">·</span>
                   <span className="text-[#3E6FB4] font-medium">
-                    Air {roleScopedShipments.filter((s) => s.mode === TransportMode.AIR).length}
+                    {isId ? 'Udara' : 'Air'} {roleScopedShipments.filter((s) => s.mode === TransportMode.AIR).length}
                   </span>
                   <span className="text-[#CBD5E1]">·</span>
                   <span className="text-[#2F8F9A] font-medium">
-                    Road {roleScopedShipments.filter((s) => s.mode === TransportMode.ROAD).length}
+                    {isId ? 'Darat' : 'Road'} {roleScopedShipments.filter((s) => s.mode === TransportMode.ROAD).length}
                   </span>
                 </div>
               </div>
@@ -2047,6 +2222,7 @@ export const App: React.FC = () => {
                 selectedShipmentId={selectedShipment?.id || null}
                 onSelectShipment={(sh) => setSelectedShipment(sh)}
                 heightClass="h-[520px]"
+                lang={lang}
               />
 
               {/* Readable Active Shipments Quick-Inspect Table Below Map */}
@@ -2054,10 +2230,12 @@ export const App: React.FC = () => {
                 <div className="px-5 py-3.5 bg-[#F8FAFC] border-b border-[#E3E9F3] flex flex-wrap items-center justify-between gap-2">
                   <div>
                     <h2 className="text-[14.5px] font-bold text-[#072D59]">
-                      Active Corridor Shipments Directory
+                      {isId ? 'Direktori Pengiriman Koridor Aktif' : 'Active Corridor Shipments Directory'}
                     </h2>
                     <p className="text-[12px] text-[#475569]">
-                      Click any shipment row or the Inspect button to view its chronological checkpoints, destination weather, and route trajectory
+                      {isId
+                        ? 'Klik baris pengiriman atau tombol Buka Detail untuk melihat titik pantau kronologis, cuaca tujuan, dan lintasan rute'
+                        : 'Click any shipment row or the Inspect button to view its chronological checkpoints, destination weather, and route trajectory'}
                     </p>
                   </div>
                   <button
@@ -2065,23 +2243,50 @@ export const App: React.FC = () => {
                     onClick={() => setActiveSection('shipments')}
                     className="px-3 py-1.5 rounded-lg border border-[#CBD5E1] bg-white hover:bg-[#F1F5F9] text-[12px] font-semibold text-[#072D59] cursor-pointer transition-colors"
                   >
-                    View All {roleScopedShipments.length} Shipments →
+                    {isId
+                      ? `Lihat Semua ${roleScopedShipments.length} Pengiriman →`
+                      : `View All ${roleScopedShipments.length} Shipments →`}
                   </button>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse text-[12px]">
                     <thead>
                       <tr className="border-b border-[#DCE4F0] text-[#475569] text-[11px] uppercase tracking-wider bg-[#F4F7FB]">
-                        <th className="py-3 pl-4 pr-2.5 font-bold">Shipment #</th>
-                        <th className="py-3 px-2.5 font-bold">Mode & Carrier</th>
-                        <th className="py-3 px-2.5 font-bold">Origin → Destination</th>
-                        <th className="py-3 px-2.5 font-bold text-center">Status</th>
-                        <th className="py-3 px-2.5 font-bold text-center">Schedule Variance</th>
-                        <th className="py-3 pl-2.5 pr-4 font-bold text-center w-[124px]">Action</th>
+                        <th className="py-3 pl-4 pr-2.5 font-bold">{isId ? 'No. Resi' : 'Shipment #'}</th>
+                        <th className="py-3 px-2.5 font-bold">{isId ? 'Moda & Maskapai' : 'Mode & Carrier'}</th>
+                        <th className="py-3 px-2.5 font-bold">{isId ? 'Asal → Tujuan' : 'Origin → Destination'}</th>
+                        <th className="py-3 px-2.5 font-bold text-center">{isId ? 'Status' : 'Status'}</th>
+                        <th className="py-3 px-2.5 font-bold text-center">{isId ? 'Selisih Jadwal' : 'Schedule Variance'}</th>
+                        <th className="py-3 pl-2.5 pr-4 font-bold text-center w-[124px]">{isId ? 'Aksi' : 'Action'}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#E3E9F3]">
-                      {roleScopedShipments.slice(0, 8).map((sh) => {
+                      {([
+                        roleScopedShipments.find((s) => s.id === 101),
+                        roleScopedShipments.find((s) => s.id === 102),
+                        roleScopedShipments.find((s) => s.id === 103),
+                        roleScopedShipments.find((s) => s.id === 105),
+                        roleScopedShipments.find((s) => s.id === 106),
+                        roleScopedShipments.find((s) => s.id === 107),
+                        roleScopedShipments.find((s) => s.id === 104),
+                        roleScopedShipments.find((s) => s.id === 202),
+                        roleScopedShipments.find((s) => s.id === 204),
+                        roleScopedShipments.find((s) => s.id === 303),
+                      ].filter((s): s is Shipment => Boolean(s)).length >= 6
+                        ? [
+                            roleScopedShipments.find((s) => s.id === 101),
+                            roleScopedShipments.find((s) => s.id === 102),
+                            roleScopedShipments.find((s) => s.id === 103),
+                            roleScopedShipments.find((s) => s.id === 105),
+                            roleScopedShipments.find((s) => s.id === 106),
+                            roleScopedShipments.find((s) => s.id === 107),
+                            roleScopedShipments.find((s) => s.id === 104),
+                            roleScopedShipments.find((s) => s.id === 202),
+                            roleScopedShipments.find((s) => s.id === 204),
+                            roleScopedShipments.find((s) => s.id === 303),
+                          ].filter((s): s is Shipment => Boolean(s))
+                        : roleScopedShipments.slice(0, 10)
+                      ).map((sh) => {
                         const orig = locations.find((l) => l.id === sh.origin_location_id);
                         const dest = locations.find((l) => l.id === sh.destination_location_id);
                         const car = carriers.find((c) => c.id === sh.carrier_id);
@@ -2101,7 +2306,7 @@ export const App: React.FC = () => {
                             </td>
                             <td className="py-2.5 px-2.5 align-middle max-w-[180px]">
                               <div className="flex items-center gap-2 min-w-0">
-                                <ModeIconChip mode={sh.mode} size="sm" />
+                                <ModeIconChip mode={sh.mode} size="sm" lang={lang} />
                                 <div className="min-w-0">
                                   <div className="font-semibold text-[#072D59] truncate" title={car?.name}>
                                     {car?.name}
@@ -2119,10 +2324,11 @@ export const App: React.FC = () => {
                               <ShipmentStatusBadge
                                 status={sh.status}
                                 isDelayed={eta.is_delayed && sh.status !== ShipmentStatus.DELIVERED}
+                                lang={lang}
                               />
                             </td>
                             <td className="py-2.5 px-2.5 align-middle text-center whitespace-nowrap">
-                              <SeverityBadge severity={eta.severity} />
+                              <SeverityBadge severity={eta.severity} lang={lang} />
                             </td>
                             <td className="py-2.5 pl-2.5 pr-4 align-middle text-center whitespace-nowrap">
                               <button
@@ -2133,7 +2339,7 @@ export const App: React.FC = () => {
                                 }}
                                 className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#F4F7FB] hover:bg-[#072D59] text-[#072D59] hover:text-white border border-[#DCE4F0] hover:border-[#072D59] text-[11px] font-semibold transition-colors cursor-pointer"
                               >
-                                <span>Open Details</span>
+                                <span>{isId ? 'Buka Detail' : 'Open Details'}</span>
                                 <span>→</span>
                               </button>
                             </td>
@@ -2155,10 +2361,12 @@ export const App: React.FC = () => {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h1 className="text-[21px] font-bold text-[#072D59]">
-                    Popular Corridors & Route Volume Analytics
+                    {isId ? 'Koridor Terpopuler & Analitik Volume Rute (Seluruh Dunia)' : 'Popular Corridors & Route Volume Analytics'}
                   </h1>
                   <p className="text-[13px] text-[#64748B]">
-                    Aggregated corridor performance ranked by active shipment volume (jumlah kargo aktif per rute), haversine distance, and on-time rate
+                    {isId
+                      ? 'Performa koridor pengiriman dunia diurutkan berdasarkan jumlah kargo aktif per rute, jarak Haversine, dan persentase tepat waktu'
+                      : 'Aggregated corridor performance ranked by active shipment volume (jumlah kargo aktif per rute), haversine distance, and on-time rate'}
                   </p>
                 </div>
                 <button
@@ -2167,7 +2375,7 @@ export const App: React.FC = () => {
                   className="px-3.5 py-2 rounded-lg bg-[#072D59] hover:bg-[#051F3E] text-white text-[12px] font-semibold inline-flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
                 >
                   <Download className="w-3.5 h-3.5" />
-                  <span>Export Routes CSV</span>
+                  <span>{isId ? 'Unduh Rute CSV' : 'Export Routes CSV'}</span>
                 </button>
               </div>
 
@@ -2181,22 +2389,20 @@ export const App: React.FC = () => {
                     }}
                     className="bg-white border border-[#DCE4F0] hover:border-[#072D59] rounded-xl p-4 cursor-pointer transition-all flex flex-col justify-between gap-3.5 overflow-hidden shadow-2xs"
                   >
-                    {/* Top Row: Vehicle Photo + Mode Name on Left, Contained Volume Box on Right */}
                     <div className="flex items-center justify-between gap-2 min-w-0">
                       <div className="min-w-0 flex items-center gap-2 overflow-hidden">
-                        <ModeIconChip mode={r.mode} size="sm" showLabel />
+                        <ModeIconChip mode={r.mode} size="sm" showLabel lang={lang} />
                       </div>
                       <div className="shrink-0 bg-[#F4F7FB] border border-[#DCE4F0] rounded-lg px-2.5 py-1 text-right">
                         <span className="block tabular-nums text-[12px] font-extrabold text-[#072D59] leading-tight whitespace-nowrap">
-                          {r.shipment_count} {r.shipment_count === 1 ? 'Shipment' : 'Shipments'}
+                          {r.shipment_count} {isId ? 'Pengiriman' : r.shipment_count === 1 ? 'Shipment' : 'Shipments'}
                         </span>
                         <span className="block text-[9.5px] font-medium text-[#64748B] leading-tight whitespace-nowrap">
-                          Rank #{idx + 1} Volume
+                          {isId ? `Peringkat #${idx + 1} Volume` : `Rank #${idx + 1} Volume`}
                         </span>
                       </div>
                     </div>
 
-                    {/* Middle Row: Origin -> Destination & Carrier */}
                     <div className="min-w-0 space-y-1">
                       <div className="text-[14.5px] font-bold text-[#072D59] leading-snug truncate">
                         {r.origin.city} ({r.origin.code}) → {r.destination.city} ({r.destination.code})
@@ -2209,29 +2415,27 @@ export const App: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Metrics Grid */}
                     <div className="grid grid-cols-3 gap-2 pt-2.5 border-t border-[#E3E9F3] text-[12px] tabular-nums">
                       <div>
-                        <span className="text-[#64748B] block text-[10px]">Distance</span>
+                        <span className="text-[#64748B] block text-[10px]">{isId ? 'Jarak' : 'Distance'}</span>
                         <strong className="text-[#072D59]">{r.distance_mi.toLocaleString()} mi</strong>
                       </div>
                       <div>
-                        <span className="text-[#64748B] block text-[10px]">Avg. Transit</span>
-                        <strong className="text-[#072D59]">{r.avg_transit_days} days</strong>
+                        <span className="text-[#64748B] block text-[10px]">{isId ? 'Rata-rata Transit' : 'Avg. Transit'}</span>
+                        <strong className="text-[#072D59]">{r.avg_transit_days} {isId ? 'hari' : 'days'}</strong>
                       </div>
                       <div>
-                        <span className="text-[#64748B] block text-[10px]">On-Time Rate</span>
+                        <span className="text-[#64748B] block text-[10px]">{isId ? 'Tepat Waktu' : 'On-Time Rate'}</span>
                         <strong className="text-[#072D59]">{r.on_time_rate}%</strong>
                       </div>
                     </div>
 
-                    {/* Card Action Footer */}
                     <div className="pt-2 border-t border-[#F1F5F9] flex items-center justify-between gap-2 text-[11.5px]">
                       <span className="font-mono-tabular font-semibold text-[#64748B] truncate">
-                        Corridor {r.route_code}
+                        {isId ? 'Koridor' : 'Corridor'} {r.route_code}
                       </span>
                       <span className="shrink-0 inline-flex items-center gap-1 font-bold text-[#072D59] group-hover:underline">
-                        Inspect Route →
+                        {isId ? 'Periksa Rute →' : 'Inspect Route →'}
                       </span>
                     </div>
                   </div>
@@ -2248,21 +2452,25 @@ export const App: React.FC = () => {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h1 className="text-[21px] font-bold text-[#072D59]">
-                    Port, Airport & Depot Weather Telemetry
+                    {isId ? 'Telemetri Cuaca Pelabuhan, Bandara & Depo Dunia' : 'Port, Airport & Depot Weather Telemetry'}
                   </h1>
                   <p className="text-[13px] text-[#6B7A93]">
-                    Live meteorological conditions at multimodal hubs via Open-Meteo API for operational visibility
+                    {isId
+                      ? 'Kondisi meteorologi langsung di pusat logistik multimoda seluruh dunia melalui Open-Meteo API untuk visibilitas operasional'
+                      : 'Live meteorological conditions at multimodal hubs via Open-Meteo API for operational visibility'}
                   </p>
                 </div>
               </div>
 
               {loadingWeatherAll ? (
                 <div className="p-8 bg-white border border-[#E3E9F3] rounded-xl text-center text-[#6B7A93]">
-                  Fetching live meteorological telemetry from Open-Meteo API...
+                  {isId
+                    ? 'Mengambil data telemetri cuaca langsung dari Open-Meteo API...'
+                    : 'Fetching live meteorological telemetry from Open-Meteo API...'}
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {locations.slice(0, 8).map((loc) => {
+                  {featuredWeatherLocations.map((loc) => {
                     const snap = weatherSnapshots[loc.code];
                     return (
                       <div
@@ -2278,7 +2486,7 @@ export const App: React.FC = () => {
                               {loc.name}
                             </div>
                           </div>
-                          <LocationTypeBadge type={loc.type} />
+                          <LocationTypeBadge type={loc.type} lang={lang} />
                         </div>
 
                         {snap ? (
@@ -2292,16 +2500,18 @@ export const App: React.FC = () => {
                               </span>
                             </div>
                             <div className="grid grid-cols-2 gap-2 text-[11.5px] text-[#6B7A93] tabular-nums">
-                              <div>Wind: <strong className="text-[#243350]">{snap.wind_speed_kmh} km/h</strong></div>
-                              <div>Visibility: <strong className="text-[#243350]">{snap.visibility_km} km</strong></div>
+                              <div>{isId ? 'Angin:' : 'Wind:'} <strong className="text-[#243350]">{snap.wind_speed_kmh} km/h</strong></div>
+                              <div>{isId ? 'Jarak Pandang:' : 'Visibility:'} <strong className="text-[#243350]">{snap.visibility_km} km</strong></div>
                             </div>
                             <div className="text-[10.5px] text-[#6B7A93] pt-1">
-                              Source: {snap.source}
+                              {isId ? 'Sumber:' : 'Source:'} {snap.source}
                             </div>
                           </div>
                         ) : (
                           <div className="text-xs text-[#6B7A93]">
-                            Weather unavailable — showing cached operational state.
+                            {isId
+                              ? 'Cuaca tidak tersedia — menampilkan status operasional tersimpan.'
+                              : 'Weather unavailable — showing cached operational state.'}
                           </div>
                         )}
                       </div>
@@ -2319,10 +2529,12 @@ export const App: React.FC = () => {
             <div className="space-y-4">
               <div>
                 <h1 className="text-[21px] font-bold text-[#072D59]">
-                  Shipment Exceptions & Incident Management
+                  {isId ? 'Manajemen Kendala & Insiden Pengiriman' : 'Shipment Exceptions & Incident Management'}
                 </h1>
                 <p className="text-[13px] text-[#6B7A93]">
-                  Monitor and resolve customs holds, weather disruptions, port congestion, cargo damage, and documentation incidents
+                  {isId
+                    ? 'Pantau dan selesaikan penahanan bea cukai, gangguan cuaca buruk, kepadatan pelabuhan, kerusakan kargo, dan kendala dokumen'
+                    : 'Monitor and resolve customs holds, weather disruptions, port congestion, cargo damage, and documentation incidents'}
                 </p>
               </div>
 
@@ -2339,7 +2551,6 @@ export const App: React.FC = () => {
                         className="p-5 flex flex-col md:flex-row md:items-start justify-between gap-5 hover:bg-[#F8FAFC] transition-colors"
                       >
                         <div className="space-y-1.5 min-w-0 flex-1">
-                          {/* Top metadata row: only ONE status badge + clean text metadata separated by dots */}
                           <div className="flex flex-wrap items-center gap-2 text-[12px]">
                             <button
                               type="button"
@@ -2350,12 +2561,12 @@ export const App: React.FC = () => {
                             </button>
                             <span className="text-[#CBD5E1]">·</span>
                             <span className="font-semibold text-[#072D59]">
-                              {formatEnumLabel(ex.exception_type)}
+                              {translateExceptionType(ex.exception_type, lang)}
                             </span>
                             <span className="text-[#CBD5E1]">·</span>
-                            <SeverityBadge severity={ex.severity} />
+                            <SeverityBadge severity={ex.severity} lang={lang} />
                             <span className="text-[#CBD5E1]">·</span>
-                            <ExceptionStatusBadge status={ex.status} />
+                            <ExceptionStatusBadge status={ex.status} lang={lang} />
                           </div>
 
                           <h3 className="text-[15px] font-bold text-[#072D59] pt-0.5">
@@ -2365,18 +2576,20 @@ export const App: React.FC = () => {
                             {ex.description}
                           </p>
                           <div className="text-[11.5px] text-[#64748B] tabular-nums pt-0.5">
-                            Detected {new Date(ex.detected_at).toLocaleString('en-GB', {
+                            {isId ? 'Terdeteksi ' : 'Detected '}
+                            {new Date(ex.detected_at).toLocaleString('en-GB', {
                               day: '2-digit',
                               month: 'short',
                               year: 'numeric',
                               hour: '2-digit',
                               minute: '2-digit',
                             })}{' '}
-                            · Reported by <span className="font-medium text-[#334155]">{ex.reported_by_name}</span>
+                            · {isId ? 'Dilaporkan oleh ' : 'Reported by '}
+                            <span className="font-medium text-[#334155]">{ex.reported_by_name}</span>
                             {ex.resolved_at && (
                               <>
                                 {' '}
-                                · Resolved{' '}
+                                · {isId ? 'Diselesaikan ' : 'Resolved '}
                                 {new Date(ex.resolved_at).toLocaleString('en-GB', {
                                   day: '2-digit',
                                   month: 'short',
@@ -2396,7 +2609,7 @@ export const App: React.FC = () => {
                               onClick={() => setSelectedShipment(sh)}
                               className="px-3.5 py-1.5 rounded-lg border border-[#CBD5E1] bg-white text-[12px] font-semibold text-[#072D59] hover:bg-[#F1F5F9] transition-colors"
                             >
-                              Inspect Shipment
+                              {isId ? 'Periksa Pengiriman' : 'Inspect Shipment'}
                             </button>
                           )}
                           {canMutate && ex.status !== ExceptionStatus.RESOLVED && (
@@ -2405,12 +2618,14 @@ export const App: React.FC = () => {
                               onClick={() =>
                                 handleResolveException(
                                   ex.id,
-                                  'Cleared by operations desk and updated carrier manifest.'
+                                  isId
+                                    ? 'Diselesaikan oleh tim operasional dan manifes telah diperbarui.'
+                                    : 'Cleared by operations desk and updated carrier manifest.'
                                 )
                               }
                               className="px-3.5 py-1.5 rounded-lg bg-[#072D59] text-white text-[12px] font-semibold hover:bg-[#051F3E] transition-colors"
                             >
-                              Resolve Hold
+                              {isId ? 'Selesaikan Kendala' : 'Resolve Hold'}
                             </button>
                           )}
                         </div>
@@ -2429,10 +2644,12 @@ export const App: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <h1 className="text-[21px] font-bold text-[#072D59]">
-                    In-App Notifications
+                    {isId ? 'Pusat Notifikasi Sistem' : 'In-App Notifications'}
                   </h1>
                   <p className="text-[13px] text-[#6B7A93]">
-                    Operational alerts for status transitions, delay thresholds, and exception updates
+                    {isId
+                      ? 'Peringatan operasional untuk perubahan status pengiriman, ambang batas keterlambatan, dan pembaruan kendala'
+                      : 'Operational alerts for status transitions, delay thresholds, and exception updates'}
                   </p>
                 </div>
                 <button
@@ -2444,7 +2661,7 @@ export const App: React.FC = () => {
                   }
                   className="px-3 py-1.5 rounded-lg border border-[#E3E9F3] bg-white text-[12px] font-semibold text-[#072D59] hover:bg-[#DBF2FC]/40"
                 >
-                  Mark All as Read
+                  {isId ? 'Tandai Semua Dibaca' : 'Mark All as Read'}
                 </button>
               </div>
 
@@ -2514,10 +2731,12 @@ export const App: React.FC = () => {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h1 className="text-[21px] font-bold text-[#072D59] tracking-tight">
-                    Operational History & System Audit Trail
+                    {isId ? 'Riwayat Operasional & Jejak Audit Sistem' : 'Operational History & System Audit Trail'}
                   </h1>
                   <p className="text-[13px] text-[#64748B]">
-                    Immutable chronological ledger of operator actions, shipment status transitions, customs holds, and system configuration updates
+                    {isId
+                      ? 'Buku besar kronologis yang mencatat setiap aksi operator, perubahan status pengiriman, penahanan bea cukai, dan pembaruan pengaturan'
+                      : 'Immutable chronological ledger of operator actions, shipment status transitions, customs holds, and system configuration updates'}
                   </p>
                 </div>
               </div>
@@ -2527,13 +2746,13 @@ export const App: React.FC = () => {
                 <div className="bg-white border border-[#DCE4F0] rounded-xl p-4 flex items-center justify-between">
                   <div>
                     <div className="text-[11.5px] font-semibold text-[#64748B]">
-                      Total Recorded Audit Events
+                      {isId ? 'Total Catatan Log Audit' : 'Total Recorded Audit Events'}
                     </div>
                     <div className="text-[22px] font-extrabold text-[#072D59] tabular-nums mt-0.5">
                       {auditLogs.length}
                     </div>
                     <div className="text-[11px] text-[#475569] mt-0.5">
-                      Verified SHA-256 append-only log
+                      {isId ? 'Log permanen terverifikasi (append-only)' : 'Verified SHA-256 append-only log'}
                     </div>
                   </div>
                   <div className="w-10 h-10 rounded-xl bg-[#F0F7FF] border border-[#B8E2F8] text-[#072D59] flex items-center justify-center">
@@ -2544,7 +2763,7 @@ export const App: React.FC = () => {
                 <div className="bg-white border border-[#DCE4F0] rounded-xl p-4 flex items-center justify-between">
                   <div>
                     <div className="text-[11.5px] font-semibold text-[#64748B]">
-                      Shipment & Checkpoint Actions
+                      {isId ? 'Aksi Pengiriman & Titik Pantau' : 'Shipment & Checkpoint Actions'}
                     </div>
                     <div className="text-[22px] font-extrabold text-[#072D59] tabular-nums mt-0.5">
                       {
@@ -2555,7 +2774,7 @@ export const App: React.FC = () => {
                       }
                     </div>
                     <div className="text-[11px] text-[#475569] mt-0.5">
-                      Lifecycle transitions & departures
+                      {isId ? 'Perubahan status & keberangkatan kargo' : 'Lifecycle transitions & departures'}
                     </div>
                   </div>
                   <div className="w-10 h-10 rounded-xl bg-[#F3FAF9] border border-[#BCE3E8] text-[#0D9488] flex items-center justify-center">
@@ -2566,13 +2785,13 @@ export const App: React.FC = () => {
                 <div className="bg-white border border-[#DCE4F0] rounded-xl p-4 flex items-center justify-between">
                   <div>
                     <div className="text-[11.5px] font-semibold text-[#64748B]">
-                      Exception & Hold Incidents
+                      {isId ? 'Insiden Kendala & Penahanan' : 'Exception & Hold Incidents'}
                     </div>
                     <div className="text-[22px] font-extrabold text-[#9F1D35] tabular-nums mt-0.5">
                       {auditLogs.filter((l) => l.entity_type === 'ShipmentException').length}
                     </div>
                     <div className="text-[11px] text-[#475569] mt-0.5">
-                      Customs holds, weather delays & resolutions
+                      {isId ? 'Bea cukai, keterlambatan cuaca & penyelesaian' : 'Customs holds, weather delays & resolutions'}
                     </div>
                   </div>
                   <div className="w-10 h-10 rounded-xl bg-[#FFF0F3] border border-[#FD6E88]/60 text-[#9F1D35] flex items-center justify-center">
@@ -2586,10 +2805,10 @@ export const App: React.FC = () => {
                 <div className="flex flex-wrap items-center gap-1.5">
                   {(
                     [
-                      { id: 'ALL', label: 'All Activity' },
-                      { id: 'SHIPMENT', label: 'Shipment Updates' },
-                      { id: 'EXCEPTION', label: 'Exceptions & Holds' },
-                      { id: 'SETTINGS', label: 'System Config' },
+                      { id: 'ALL', label: isId ? 'Semua Aktivitas' : 'All Activity' },
+                      { id: 'SHIPMENT', label: isId ? 'Pembaruan Pengiriman' : 'Shipment Updates' },
+                      { id: 'EXCEPTION', label: isId ? 'Kendala & Hold' : 'Exceptions & Holds' },
+                      { id: 'SETTINGS', label: isId ? 'Konfigurasi Sistem' : 'System Config' },
                     ] as const
                   ).map((cat) => (
                     <button
@@ -2613,7 +2832,7 @@ export const App: React.FC = () => {
                     type="text"
                     value={auditSearchQuery}
                     onChange={(e) => setAuditSearchQuery(e.target.value)}
-                    placeholder="Search actor, DND-2026-..., or action..."
+                    placeholder={isId ? 'Cari pengguna, DND-2026-..., atau aksi...' : 'Search actor, DND-2026-..., or action...'}
                     className="w-full bg-[#F8FAFC] border border-[#DCE4F0] focus:bg-white focus:border-[#072D59] focus:outline-none rounded-lg pl-9 pr-3 py-1.5 text-[12.5px]"
                   />
                 </div>
@@ -2684,13 +2903,13 @@ export const App: React.FC = () => {
                                 {log.actor_name}
                               </span>
                               <span className="text-[11px] font-semibold text-[#64748B] whitespace-nowrap">
-                                ({formatEnumLabel(log.actor_role)})
+                                ({translateRole(log.actor_role, lang)})
                               </span>
                               <span className="text-[#CBD5E1]" aria-hidden="true">·</span>
                               <span
                                 className={`px-2 py-0.5 rounded-md text-[11px] font-semibold border whitespace-nowrap ${actionBadgeClass}`}
                               >
-                                {formatEnumLabel(log.action)}
+                                {translateAuditAction(log.action, lang)}
                               </span>
                               <span className="text-[#CBD5E1]" aria-hidden="true">·</span>
                               <span className="font-mono-tabular text-[12px] font-bold text-[#072D59] whitespace-nowrap">
@@ -2731,7 +2950,7 @@ export const App: React.FC = () => {
                               onClick={() => setSelectedShipment(matchedShipment)}
                               className="px-3 py-1.5 rounded-lg bg-[#F4F7FB] hover:bg-[#072D59] text-[#072D59] hover:text-white border border-[#DCE4F0] hover:border-[#072D59] text-[11.5px] font-semibold transition-colors whitespace-nowrap cursor-pointer"
                             >
-                              Inspect Shipment →
+                              {isId ? 'Periksa Pengiriman →' : 'Inspect Shipment →'}
                             </button>
                           )}
                         </div>
@@ -2749,10 +2968,12 @@ export const App: React.FC = () => {
             <div className="space-y-5">
               <div>
                 <h1 className="text-[21px] font-bold text-[#072D59]">
-                  Carriers & Multimodal Fleet Registry
+                  {isId ? 'Registri Maskapai & Armada Multimoda' : 'Carriers & Multimodal Fleet Registry'}
                 </h1>
                 <p className="text-[13px] text-[#6B7A93]">
-                  Each carrier operates a dedicated primary transport mode (Sea, Air, or Road)
+                  {isId
+                    ? 'Setiap operator logistik mengoperasikan satu moda transportasi utama (Laut, Udara, atau Darat)'
+                    : 'Each carrier operates a dedicated primary transport mode (Sea, Air, or Road)'}
                 </p>
               </div>
 
@@ -2773,13 +2994,17 @@ export const App: React.FC = () => {
                   setNewCarrierCode('');
                   setNewCarrierName('');
                   setNewCarrierFleet('');
-                  showToast(`Registered ${created.mode} carrier ${created.name}.`);
+                  showToast(
+                    isId
+                      ? `Berhasil mendaftarkan maskapai ${created.mode} ${created.name}.`
+                      : `Registered ${created.mode} carrier ${created.name}.`
+                  );
                 }}
                 className="bg-white border border-[#E3E9F3] rounded-xl p-4 grid grid-cols-1 sm:grid-cols-5 gap-3 items-end text-[12.5px]"
               >
                 <div>
                   <label className="block text-[11px] font-semibold text-[#243350] mb-1">
-                    Carrier Code
+                    {isId ? 'Kode Maskapai' : 'Carrier Code'}
                   </label>
                   <input
                     type="text"
@@ -2792,7 +3017,7 @@ export const App: React.FC = () => {
                 </div>
                 <div>
                   <label className="block text-[11px] font-semibold text-[#243350] mb-1">
-                    Carrier Name
+                    {isId ? 'Nama Maskapai / Operator' : 'Carrier Name'}
                   </label>
                   <input
                     type="text"
@@ -2805,25 +3030,25 @@ export const App: React.FC = () => {
                 </div>
                 <div>
                   <label className="block text-[11px] font-semibold text-[#243350] mb-1">
-                    Operating Mode
+                    {isId ? 'Moda Operasi' : 'Operating Mode'}
                   </label>
                   <select
                     value={newCarrierMode}
                     onChange={(e) => setNewCarrierMode(e.target.value as TransportMode)}
                     className="w-full border border-[#E3E9F3] rounded-lg px-3 py-1.5"
                   >
-                    <option value={TransportMode.SEA}>Sea Freight</option>
-                    <option value={TransportMode.AIR}>Air Freight</option>
-                    <option value={TransportMode.ROAD}>Road Freight</option>
+                    <option value={TransportMode.SEA}>{isId ? 'Kargo Laut (SEA)' : 'Sea Freight'}</option>
+                    <option value={TransportMode.AIR}>{isId ? 'Kargo Udara (AIR)' : 'Air Freight'}</option>
+                    <option value={TransportMode.ROAD}>{isId ? 'Kargo Darat (ROAD)' : 'Road Freight'}</option>
                   </select>
                 </div>
                 <div>
                   <label className="block text-[11px] font-semibold text-[#243350] mb-1">
-                    Fleet Summary
+                    {isId ? 'Ringkasan Armada' : 'Fleet Summary'}
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g. 10 Container Ships"
+                    placeholder={isId ? 'contoh: 10 Kapal Kontainer' : 'e.g. 10 Container Ships'}
                     value={newCarrierFleet}
                     onChange={(e) => setNewCarrierFleet(e.target.value)}
                     className="w-full border border-[#E3E9F3] rounded-lg px-3 py-1.5"
@@ -2833,7 +3058,7 @@ export const App: React.FC = () => {
                   type="submit"
                   className="px-4 py-2 rounded-lg bg-[#072D59] text-white font-semibold hover:bg-[#051F3E]"
                 >
-                  + Add Carrier
+                  {isId ? '+ Tambah Maskapai' : '+ Add Carrier'}
                 </button>
               </form>
 
@@ -2843,14 +3068,14 @@ export const App: React.FC = () => {
                     key={c.id}
                     className="bg-white border border-[#E3E9F3] rounded-xl p-4 flex items-start gap-3"
                   >
-                    <ModeIconChip mode={c.mode} size="lg" />
+                    <ModeIconChip mode={c.mode} size="lg" lang={lang} />
                     <div>
                       <div className="font-bold text-[#072D59] text-[14px]">
                         {c.name} ({c.code})
                       </div>
                       <div className="text-[12px] text-[#6B7A93]">{c.fleet_summary}</div>
                       <div className="text-[11px] text-[#072D59] mt-1">
-                        {formatEnumLabel(c.mode)} Freight · {c.contact_email}
+                        {translateMode(c.mode, lang)} · {c.contact_email}
                       </div>
                     </div>
                   </div>
@@ -2867,10 +3092,12 @@ export const App: React.FC = () => {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h1 className="text-[21px] font-bold text-[#072D59]">
-                    Locations & Hubs Registry
+                    {isId ? 'Registri Lokasi, Pelabuhan, Bandara & Depo Dunia' : 'Locations & Hubs Registry'}
                   </h1>
                   <p className="text-[13px] text-[#6B7A93]">
-                    Register Seaports, Airports, and Road Depots with automatic Latitude & Longitude coordinate lookup and hub management
+                    {isId
+                      ? 'Daftarkan Pelabuhan Laut, Bandara Kargo, dan Depo Darat dengan pencarian koordinat Latitude & Longitude otomatis serta pengelolaan hub'
+                      : 'Register Seaports, Airports, and Road Depots with automatic Latitude & Longitude coordinate lookup and hub management'}
                   </p>
                 </div>
                 {locations.length < SEED_LOCATIONS.length && (
@@ -2878,11 +3105,17 @@ export const App: React.FC = () => {
                     type="button"
                     onClick={() => {
                       setLocations(SEED_LOCATIONS);
-                      showToast('Restored all default global logistics hubs.');
+                      showToast(
+                        isId
+                          ? 'Semua lokasi hub logistik dunia bawaan telah dipulihkan.'
+                          : 'Restored all default global logistics hubs.'
+                      );
                     }}
                     className="px-3 py-1.5 rounded-lg border border-[#CBD5E1] bg-white text-[12px] font-semibold text-[#072D59] hover:bg-[#F8FAFC] cursor-pointer"
                   >
-                    Restore Default Locations ({SEED_LOCATIONS.length})
+                    {isId
+                      ? `Pulihkan Lokasi Bawaan (${SEED_LOCATIONS.length})`
+                      : `Restore Default Locations (${SEED_LOCATIONS.length})`}
                   </button>
                 )}
               </div>
@@ -2907,17 +3140,29 @@ export const App: React.FC = () => {
                   setNewLocCode('');
                   setNewLocName('');
                   setNewLocCity('');
-                  showToast(`Added ${formatEnumLabel(created.type)} location ${created.name} (${created.code}).`);
+                  showToast(
+                    isId
+                      ? `Berhasil menambahkan lokasi ${translateLocationType(created.type, lang)} ${created.name} (${created.code}).`
+                      : `Added ${formatEnumLabel(created.type)} location ${created.name} (${created.code}).`
+                  );
                 }}
                 className="bg-white border border-[#E3E9F3] rounded-xl p-5 space-y-4 text-[12.5px]"
               >
                 <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-[#F1F5F9]">
                   <div>
                     <div className="font-bold text-[#072D59] text-[14px]">
-                      Add New Logistics Hub Location
+                      {isId ? 'Tambah Lokasi Hub Logistik Baru' : 'Add New Logistics Hub Location'}
                     </div>
                     <div className="text-[11.5px] text-[#64748B]">
-                      Enter a city or facility name and click <strong>Auto Latitude & Longitude</strong> to fill WGS84 coordinates automatically
+                      {isId ? (
+                        <>
+                          Masukkan nama kota atau fasilitas lalu klik <strong>Otomatis Latitude & Longitude</strong> untuk mengisi koordinat WGS84 secara instan
+                        </>
+                      ) : (
+                        <>
+                          Enter a city or facility name and click <strong>Auto Latitude & Longitude</strong> to fill WGS84 coordinates automatically
+                        </>
+                      )}
                     </div>
                   </div>
 
@@ -2926,29 +3171,37 @@ export const App: React.FC = () => {
                     data-testid="auto-lat-lng-btn"
                     onClick={async () => {
                       const query = newLocCity || newLocName || newLocCode || 'Semarang';
-                      setGeocodeStatus(`Looking up coordinates for "${query}"...`);
+                      setGeocodeStatus(
+                        isId
+                          ? `Mencari koordinat untuk "${query}"...`
+                          : `Looking up coordinates for "${query}"...`
+                      );
                       const res = await ExternalApiService.geocodePlaceName(query);
                       setNewLocLat(res.latitude);
                       setNewLocLng(res.longitude);
                       if (!newLocCity && res.city) setNewLocCity(res.city);
                       if (!newLocCountry && res.country) setNewLocCountry(res.country);
                       setGeocodeStatus(
-                        `Auto Lat/Lng filled (${res.latitude.toFixed(4)}, ${res.longitude.toFixed(4)}) via ${res.source}: ${res.display_name}`
+                        `Auto Lat/Lng (${res.latitude.toFixed(4)}, ${res.longitude.toFixed(4)}) via ${res.source}: ${res.display_name}`
                       );
                       showToast(
-                        `Auto Latitude & Longitude filled: ${res.latitude.toFixed(4)}, ${res.longitude.toFixed(4)}`
+                        isId
+                          ? `Latitude & Longitude otomatis terisi: ${res.latitude.toFixed(4)}, ${res.longitude.toFixed(4)}`
+                          : `Auto Latitude & Longitude filled: ${res.latitude.toFixed(4)}, ${res.longitude.toFixed(4)}`
                       );
                     }}
                     className="px-3.5 py-2 rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-[12px] inline-flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
                   >
                     <Compass className="w-3.5 h-3.5" />
-                    <span>Auto Latitude & Longitude</span>
+                    <span>{isId ? 'Otomatis Latitude & Longitude' : 'Auto Latitude & Longitude'}</span>
                   </button>
                 </div>
 
                 {/* Quick Hub Preset Chips for 1-Click Auto-Fill */}
                 <div className="flex flex-wrap items-center gap-1.5 text-[11.5px]">
-                  <span className="text-[#64748B] font-semibold mr-1">Quick Auto-Fill Presets:</span>
+                  <span className="text-[#64748B] font-semibold mr-1">
+                    {isId ? 'Preset Isi Cepat:' : 'Quick Auto-Fill Presets:'}
+                  </span>
                   {[
                     { code: 'IDSRG', name: 'Tanjung Emas Seaport', city: 'Semarang', country: 'Indonesia', type: LocationType.SEAPORT, lat: -6.9482, lng: 110.4239 },
                     { code: 'IDMAK', name: 'Soekarno-Hatta Seaport', city: 'Makassar', country: 'Indonesia', type: LocationType.SEAPORT, lat: -5.1189, lng: 119.4064 },
@@ -2982,7 +3235,7 @@ export const App: React.FC = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                   <div>
                     <label className="block text-[11px] font-semibold mb-1 text-[#334155]">
-                      Location Code (UN/LOCODE or IATA)
+                      {isId ? 'Kode Lokasi (UN/LOCODE atau IATA)' : 'Location Code (UN/LOCODE or IATA)'}
                     </label>
                     <input
                       type="text"
@@ -2995,7 +3248,7 @@ export const App: React.FC = () => {
                   </div>
                   <div>
                     <label className="block text-[11px] font-semibold mb-1 text-[#334155]">
-                      Facility Name
+                      {isId ? 'Nama Fasilitas / Terminal' : 'Facility Name'}
                     </label>
                     <input
                       type="text"
@@ -3008,7 +3261,7 @@ export const App: React.FC = () => {
                   </div>
                   <div>
                     <label className="block text-[11px] font-semibold mb-1 text-[#334155]">
-                      City (Geocode Target)
+                      {isId ? 'Kota (Target Geocode)' : 'City (Geocode Target)'}
                     </label>
                     <div className="flex gap-1.5">
                       <input
@@ -3038,21 +3291,21 @@ export const App: React.FC = () => {
                   </div>
                   <div>
                     <label className="block text-[11px] font-semibold mb-1 text-[#334155]">
-                      Facility Type
+                      {isId ? 'Tipe Fasilitas' : 'Facility Type'}
                     </label>
                     <select
                       value={newLocType}
                       onChange={(e) => setNewLocType(e.target.value as LocationType)}
                       className="w-full border border-[#CBD5E1] rounded-lg px-3 py-1.5 bg-white"
                     >
-                      <option value={LocationType.SEAPORT}>Seaport</option>
-                      <option value={LocationType.AIRPORT}>Airport</option>
-                      <option value={LocationType.DEPOT}>Road Depot</option>
+                      <option value={LocationType.SEAPORT}>{isId ? 'Pelabuhan Laut (Seaport)' : 'Seaport'}</option>
+                      <option value={LocationType.AIRPORT}>{isId ? 'Bandara Kargo (Airport)' : 'Airport'}</option>
+                      <option value={LocationType.DEPOT}>{isId ? 'Depo Darat (Road Depot)' : 'Road Depot'}</option>
                     </select>
                   </div>
                   <div>
                     <label className="block text-[11px] font-semibold mb-1 text-[#334155]">
-                      Country
+                      {isId ? 'Negara' : 'Country'}
                     </label>
                     <input
                       type="text"
@@ -3091,7 +3344,7 @@ export const App: React.FC = () => {
                       type="submit"
                       className="w-full py-1.5 rounded-lg bg-[#072D59] hover:bg-[#051F3E] text-white font-semibold cursor-pointer"
                     >
-                      + Save Location
+                      {isId ? '+ Simpan Lokasi' : '+ Save Location'}
                     </button>
                   </div>
                 </div>
@@ -3113,7 +3366,7 @@ export const App: React.FC = () => {
                         <span className="font-mono-tabular font-bold text-[#072D59] text-[13.5px]">
                           {loc.code}
                         </span>
-                        <LocationTypeBadge type={loc.type} />
+                        <LocationTypeBadge type={loc.type} lang={lang} />
                       </div>
                       <div className="font-bold text-[#1E293B] text-[13.5px]">
                         {loc.name}
@@ -3178,7 +3431,7 @@ export const App: React.FC = () => {
                         title={`Delete ${loc.name}`}
                       >
                         <Trash2 className="w-3 h-3" />
-                        <span>Hapus Location</span>
+                        <span>{isId ? 'Hapus Lokasi' : 'Delete Location'}</span>
                       </button>
                     </div>
                   </div>
@@ -3188,16 +3441,20 @@ export const App: React.FC = () => {
           )}
 
           {/* ===================================================================
-              SECTION 12: SETTINGS & GROUP CONFIGURATION
+              SECTION 12: GLOBAL NETWORK SLA & DELAY THRESHOLD SETTINGS
           =================================================================== */}
           {activeSection === 'settings' && (
             <div className="space-y-5 max-w-3xl">
               <div>
                 <h1 className="text-[21px] font-bold text-[#072D59]">
-                  Group Configuration & Delay Threshold Settings
+                  {isId
+                    ? 'Pengaturan SLA Jaringan Global & Ambang Batas Keterlambatan'
+                    : 'Global Network SLA & Delay Threshold Settings'}
                 </h1>
                 <p className="text-[13px] text-[#6B7A93]">
-                  Configured for {settings.group_name}. Updating the delay threshold base immediately recalculates all dashboard KPIs and shipment delay evaluations across the workspace.
+                  {isId
+                    ? `Dikonfigurasi untuk ${settings.group_name}. Memperbarui ambang batas keterlambatan (jam) akan langsung menghitung ulang seluruh KPI dasbor dan evaluasi status keterlambatan pengiriman di seluruh jaringan global.`
+                    : `Configured for ${settings.group_name}. Updating the delay threshold base immediately recalculates all dashboard KPIs and shipment delay evaluations across the global network.`}
                 </p>
               </div>
 
@@ -3208,7 +3465,7 @@ export const App: React.FC = () => {
                       htmlFor="setting-delay-threshold"
                       className="block text-[12px] font-bold text-[#072D59] mb-1"
                     >
-                      Group Delay Threshold Base (Hours)
+                      {isId ? 'Ambang Batas Keterlambatan Global (Jam)' : 'Global Delay Threshold Base (Hours)'}
                     </label>
                     <input
                       id="setting-delay-threshold"
@@ -3232,7 +3489,7 @@ export const App: React.FC = () => {
                             action: 'THRESHOLD_UPDATED',
                             entity_type: 'Settings',
                             entity_id: 'delay_threshold_hours',
-                            summary: `Updated group delay threshold from ${oldVal}h to ${nextVal}h.`,
+                            summary: `Updated global delay threshold from ${oldVal}h to ${nextVal}h.`,
                             old_values: { delay_threshold_hours: oldVal },
                             new_values: { delay_threshold_hours: nextVal },
                             created_at: new Date().toISOString(),
@@ -3240,68 +3497,73 @@ export const App: React.FC = () => {
                           ...prev,
                         ]);
                         showToast(
-                          `Updated Group Delay Threshold to ${nextVal} hours. Dashboard KPIs recalculated.`
+                          isId
+                            ? `Ambang Batas Keterlambatan Global diperbarui menjadi ${nextVal} jam. KPI dasbor telah dihitung ulang.`
+                            : `Updated Global Delay Threshold to ${nextVal} hours. Dashboard KPIs recalculated.`
                         );
                       }}
                       className="w-full bg-[#F4F7FB] border border-[#072D59] rounded-lg px-3 py-2 tabular-nums font-bold text-[#072D59]"
                     />
                     <span className="text-[11px] text-[#6B7A93] mt-1 block">
-                      Standard corridor presets: 12h (Group A), 18h (Group B), or 24h (Group C)
+                      {isId
+                        ? 'Preset standar SLA global: 12 jam, 18 jam, atau 24 jam'
+                        : 'Standard global SLA threshold presets: 12h, 18h, or 24h'}
                     </span>
                   </div>
 
                   <div>
                     <label className="block text-[12px] font-bold text-[#072D59] mb-1">
-                      Corridor Threshold Presets
+                      {isId ? 'Preset Cepat Ambang Batas SLA' : 'Quick SLA Threshold Presets'}
                     </label>
                     <div className="flex flex-wrap gap-2">
-                      {[
-                        { label: 'Group A (12h · SEA→EU)', hours: 12, grp: 'Group A', route: 'Southeast Asia → Europe' },
-                        { label: 'Group B (18h · Asia→NA)', hours: 18, grp: 'Group B', route: 'Asia → North America' },
-                        { label: 'Group C (24h · SEA→AU)', hours: 24, grp: 'Group C', route: 'Southeast Asia → Australia' },
-                      ].map((preset) => (
-                        <button
-                          key={preset.grp}
-                          type="button"
-                          onClick={() => {
-                            setSettings((prev) => ({
-                              ...prev,
-                              group_name: preset.grp,
-                              delay_threshold_hours: preset.hours,
-                              primary_route_focus: preset.route,
-                            }));
-                            showToast(`Applied ${preset.label} configuration.`);
-                          }}
-                          className={`px-3 py-1.5 rounded-lg text-[12px] font-semibold border ${
-                            settings.delay_threshold_hours === preset.hours
-                              ? 'bg-[#072D59] text-white border-[#072D59]'
-                              : 'bg-[#DBF2FC]/50 text-[#072D59] border-[#B8E2F8]'
-                          }`}
-                        >
-                          {preset.label}
-                        </button>
-                      ))}
+                      {[12, 18, 24].map((hrs) => {
+                        const isActive = settings.delay_threshold_hours === hrs;
+                        return (
+                          <button
+                            key={hrs}
+                            type="button"
+                            onClick={() => {
+                              setSettings((prev) => ({
+                                ...prev,
+                                delay_threshold_hours: hrs,
+                              }));
+                              showToast(
+                                isId
+                                  ? `Preset ambang batas SLA Global ${hrs} jam diterapkan.`
+                                  : `Applied ${hrs}-hour Global SLA threshold preset.`
+                              );
+                            }}
+                            className={`px-3 py-1.5 rounded-lg text-[12px] font-semibold border cursor-pointer transition-colors ${
+                              isActive
+                                ? 'bg-[#072D59] text-white border-[#072D59]'
+                                : 'bg-[#DBF2FC]/50 text-[#072D59] border-[#B8E2F8] hover:bg-[#DBF2FC]'
+                            }`}
+                          >
+                            {hrs} {isId ? 'Jam SLA' : 'Hours SLA'}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
 
                 <div className="pt-4 border-t border-[#E3E9F3] grid grid-cols-1 sm:grid-cols-3 gap-3 text-[12px]">
                   <div className="p-3 rounded-lg bg-[#F4F7FB] border border-[#E3E9F3]">
-                    <span className="text-[#6B7A93] block">Minor Delay Window</span>
+                    <span className="text-[#6B7A93] block">{isId ? 'Keterlambatan Ringan (Low)' : 'Minor Delay Window'}</span>
                     <strong className="tabular-nums text-[#072D59]">
-                      0 – {settings.low_severity_max_hours} hours
+                      0 – {settings.low_severity_max_hours} {isId ? 'jam' : 'hours'}
                     </strong>
                   </div>
                   <div className="p-3 rounded-lg bg-[#F4F7FB] border border-[#E3E9F3]">
-                    <span className="text-[#6B7A93] block">Moderate Delay Window</span>
+                    <span className="text-[#6B7A93] block">{isId ? 'Keterlambatan Sedang (Medium)' : 'Moderate Delay Window'}</span>
                     <strong className="tabular-nums text-[#072D59]">
-                      &gt;{settings.low_severity_max_hours} – {settings.medium_severity_max_hours} hours
+                      &gt;{settings.low_severity_max_hours} – {settings.medium_severity_max_hours} {isId ? 'jam' : 'hours'}
                     </strong>
                   </div>
                   <div className="p-3 rounded-lg bg-[#FFF0F3] border border-[#FD6E88]">
-                    <span className="text-[#9F1D35] block">Severe Delay Window</span>
+                    <span className="text-[#9F1D35] block">{isId ? 'Keterlambatan Berat (High)' : 'Severe Delay Window'}</span>
                     <strong className="tabular-nums text-[#9F1D35]">
-                      &gt;{settings.medium_severity_max_hours} hours
+                      &gt;{settings.medium_severity_max_hours} {isId ? 'jam' : 'hours'}
                     </strong>
                   </div>
                 </div>
@@ -3319,10 +3581,14 @@ export const App: React.FC = () => {
                   <BookOpen className="w-5 h-5 text-[#072D59]" />
                   <div>
                     <h1 className="text-[21px] font-bold text-[#072D59]">
-                      Laravel 12 + MySQL 8.0 Architecture & Code Ownership Guide
+                      {isId
+                        ? 'Panduan Arsitektur Laravel 12 + MySQL 8.0 & Tanya Jawab Sidang'
+                        : 'Laravel 12 + MySQL 8.0 Architecture & Code Ownership Guide'}
                     </h1>
                     <p className="text-[13px] text-[#475569]">
-                      Complete Laravel 12 MVC + Service Layer + Eloquent ORM + MySQL 8.0 reference for VPS deployment & UAS Code Interview (Slides 11–20)
+                      {isId
+                        ? 'Referensi lengkap Laravel 12 MVC + Service Layer + Eloquent ORM + MySQL 8.0 untuk deployment VPS & Wawancara Kode UAS (Slide 11–20)'
+                        : 'Complete Laravel 12 MVC + Service Layer + Eloquent ORM + MySQL 8.0 reference for VPS deployment & UAS Code Interview (Slides 11–20)'}
                     </p>
                   </div>
                 </div>
@@ -3333,7 +3599,7 @@ export const App: React.FC = () => {
                   className="px-3.5 py-2 rounded-xl bg-[#072D59] hover:bg-[#0A3B73] text-white text-[12.5px] font-semibold inline-flex items-center gap-2 shadow-2xs transition-colors"
                 >
                   <Download className="w-3.5 h-3.5" />
-                  <span>Download MySQL 8.0 Schema & Seed (.sql)</span>
+                  <span>{isId ? 'Unduh Skema & Seed MySQL 8.0 (.sql)' : 'Download MySQL 8.0 Schema & Seed (.sql)'}</span>
                 </a>
               </div>
 
@@ -3515,6 +3781,7 @@ export const App: React.FC = () => {
         events={trackingEvents}
         exceptions={exceptions}
         settings={settings}
+        lang={lang}
         onClose={() => setSelectedShipment(null)}
         onAddTrackingEvent={handleAddTrackingEvent}
         onReportException={handleReportException}
@@ -3528,6 +3795,7 @@ export const App: React.FC = () => {
         carriers={carriers}
         locations={locations}
         customers={users}
+        lang={lang}
         onCreateShipment={handleCreateShipment}
       />
     </div>

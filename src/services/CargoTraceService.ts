@@ -4,12 +4,16 @@
 import {
   Carrier,
   EtaEvaluationResult,
+  ExceptionType,
   GroupConfigSettings,
+  GroupScenarioKpiSummary,
   Location,
   LocationType,
   ModeEventType,
+  ScenarioGroupCode,
   SeverityLevel,
   Shipment,
+  ShipmentException,
   ShipmentStatus,
   TrackingEvent,
   TransportMode,
@@ -117,9 +121,11 @@ export class EtaService {
       severity = SeverityLevel.MEDIUM;
     }
 
-    const groupLabel = settings.group_name.toLowerCase().startsWith('group')
-      ? settings.group_name
-      : `Group ${settings.group_name}`;
+    const lowerGroupName = settings.group_name.toLowerCase();
+    const groupLabel =
+      lowerGroupName.startsWith('group') || lowerGroupName.includes('worldwide') || lowerGroupName.includes('global')
+        ? settings.group_name
+        : `Group ${settings.group_name}`;
 
     const severityLabel =
       severity === SeverityLevel.HIGH
@@ -567,4 +573,226 @@ export const DEFAULT_MAP_INTERACTIVITY_OPTIONS = {
   doubleClickZoom: true,
   keyboard: true,
 } as const;
+
+/**
+ * Slide 23: Canonical Group A, Group B, and Group C Scenario Presets
+ */
+export const GROUP_SCENARIO_PRESETS: Record<ScenarioGroupCode, GroupConfigSettings> = {
+  GROUP_A: {
+    group_code: 'GROUP_A',
+    group_name: 'Group A (Southeast Asia → Europe)',
+    primary_route_focus: 'Southeast Asia → Europe',
+    delay_threshold_hours: 12,
+    low_severity_max_hours: 6,
+    medium_severity_max_hours: 24,
+    main_exception_focus: ExceptionType.CUSTOMS_HOLD,
+    group_kpi_label: 'On-Time Delivery Rate (%)',
+    multimodal_option: 'Option A (Primary Mode per Shipment)',
+  },
+  GROUP_B: {
+    group_code: 'GROUP_B',
+    group_name: 'Group B (Asia → North America)',
+    primary_route_focus: 'Asia → North America',
+    delay_threshold_hours: 18,
+    low_severity_max_hours: 6,
+    medium_severity_max_hours: 24,
+    main_exception_focus: ExceptionType.WEATHER_DELAY,
+    group_kpi_label: 'Average Delay Duration (jam)',
+    multimodal_option: 'Option A (Primary Mode per Shipment)',
+  },
+  GROUP_C: {
+    group_code: 'GROUP_C',
+    group_name: 'Group C (Southeast Asia → Australia)',
+    primary_route_focus: 'Southeast Asia → Australia',
+    delay_threshold_hours: 24,
+    low_severity_max_hours: 6,
+    medium_severity_max_hours: 24,
+    main_exception_focus: ExceptionType.DOCUMENTATION_ISSUE,
+    group_kpi_label: 'Exception Resolution Time (jam)',
+    multimodal_option: 'Option A (Primary Mode per Shipment)',
+  },
+};
+
+/**
+ * Classifies a shipment into Group A (SEA -> Europe), Group B (Asia -> North America),
+ * or Group C (SEA -> Australia) based on explicit scenario_group or origin/destination country.
+ */
+export function classifyShipmentScenarioGroup(
+  shipment: Shipment,
+  locationMap: Map<number, Location>
+): ScenarioGroupCode {
+  if (shipment.scenario_group) {
+    return shipment.scenario_group;
+  }
+  const orig = locationMap.get(shipment.origin_location_id);
+  const dest = locationMap.get(shipment.destination_location_id);
+  const countries = [orig?.country || '', dest?.country || ''];
+
+  if (countries.some((c) => c === 'United States' || c === 'Canada')) {
+    return 'GROUP_B';
+  }
+  if (countries.some((c) => c === 'Australia')) {
+    return 'GROUP_C';
+  }
+  return 'GROUP_A';
+}
+
+/**
+ * Computes all three lecturer-required Group Scenario KPIs (Slide 23):
+ * - Group A: Southeast Asia -> Europe | Threshold: 12 jam | Main Exception: CUSTOMS_HOLD | KPI: On-time delivery rate (%)
+ * - Group B: Asia -> North America | Threshold: 18 jam | Main Exception: WEATHER_DELAY | KPI: Average delay duration (jam)
+ * - Group C: Southeast Asia -> Australia | Threshold: 24 jam | Main Exception: DOCUMENTATION_ISSUE | KPI: Exception resolution time (jam)
+ */
+export function computeAllGroupScenarioKpis(
+  shipments: Shipment[],
+  exceptions: ShipmentException[],
+  locations: Location[]
+): Record<ScenarioGroupCode, GroupScenarioKpiSummary> {
+  const locMap = new Map(locations.map((l) => [l.id, l]));
+  const shipmentGroupMap = new Map<number, ScenarioGroupCode>();
+  for (const sh of shipments) {
+    shipmentGroupMap.set(sh.id, classifyShipmentScenarioGroup(sh, locMap));
+  }
+
+  const buildGroupSummary = (code: ScenarioGroupCode): GroupScenarioKpiSummary => {
+    const preset = GROUP_SCENARIO_PRESETS[code];
+    const groupShipments = shipments.filter(
+      (sh) => shipmentGroupMap.get(sh.id) === code
+    );
+    const groupShipmentIds = new Set(groupShipments.map((s) => s.id));
+    const groupExceptions = exceptions.filter((ex) =>
+      groupShipmentIds.has(ex.shipment_id)
+    );
+
+    let delayedCount = 0;
+    let exceedingThresholdCount = 0;
+    let totalDelayHours = 0;
+
+    for (const sh of groupShipments) {
+      const eta = EtaService.evaluate(
+        sh.expected_arrival,
+        sh.estimated_arrival,
+        preset
+      );
+      if (eta.is_delayed) {
+        delayedCount++;
+        totalDelayHours += eta.delay_hours;
+      }
+      if (eta.exceeds_group_threshold) {
+        exceedingThresholdCount++;
+      }
+    }
+
+    const totalShipments = groupShipments.length;
+    const onTimeCount = Math.max(0, totalShipments - exceedingThresholdCount);
+    const onTimeRatePct =
+      totalShipments > 0 ? Math.round((onTimeCount / totalShipments) * 100) : 100;
+
+    const avgDelayHours =
+      delayedCount > 0 ? Number((totalDelayHours / delayedCount).toFixed(1)) : 0;
+
+    // Exception resolution time (hours between detected_at and resolved_at)
+    const resolvedExceptions = groupExceptions.filter(
+      (ex) => Boolean(ex.detected_at && ex.resolved_at)
+    );
+    const fallbackResolved =
+      resolvedExceptions.length > 0
+        ? resolvedExceptions
+        : exceptions.filter((ex) => Boolean(ex.detected_at && ex.resolved_at));
+
+    let totalResolutionHours = 0;
+    let validResolvedCount = 0;
+    for (const ex of fallbackResolved) {
+      if (!ex.resolved_at) continue;
+      const diffMs =
+        new Date(ex.resolved_at).getTime() - new Date(ex.detected_at).getTime();
+      if (diffMs > 0 && Number.isFinite(diffMs)) {
+        totalResolutionHours += diffMs / 3600000;
+        validResolvedCount++;
+      }
+    }
+    const avgResolutionHours =
+      validResolvedCount > 0
+        ? Number((totalResolutionHours / validResolvedCount).toFixed(1))
+        : 0;
+
+    const matchingExceptionCount = groupExceptions.filter(
+      (ex) => ex.exception_type === preset.main_exception_focus
+    ).length;
+
+    if (code === 'GROUP_A') {
+      return {
+        code,
+        group_name: 'Group A',
+        route_corridor: 'Southeast Asia → Europe',
+        delay_threshold_hours: 12,
+        main_exception_type: ExceptionType.CUSTOMS_HOLD,
+        main_exception_label: 'Customs Hold',
+        kpi_name: 'On-Time Delivery Rate',
+        kpi_value_formatted: `${onTimeRatePct}%`,
+        kpi_numeric_value: onTimeRatePct,
+        kpi_unit: '%',
+        kpi_subtitle: `${onTimeCount}/${totalShipments} shipments within 12h SLA`,
+        total_shipments: totalShipments,
+        delayed_shipments: delayedCount,
+        exceeding_threshold_count: exceedingThresholdCount,
+        matching_exception_count: matchingExceptionCount,
+        on_time_delivery_rate_pct: onTimeRatePct,
+        average_delay_duration_hours: avgDelayHours,
+        avg_exception_resolution_hours: avgResolutionHours,
+      };
+    }
+
+    if (code === 'GROUP_B') {
+      return {
+        code,
+        group_name: 'Group B',
+        route_corridor: 'Asia → North America',
+        delay_threshold_hours: 18,
+        main_exception_type: ExceptionType.WEATHER_DELAY,
+        main_exception_label: 'Weather Delay',
+        kpi_name: 'Average Delay Duration',
+        kpi_value_formatted: `${avgDelayHours} jam`,
+        kpi_numeric_value: avgDelayHours,
+        kpi_unit: 'jam',
+        kpi_subtitle: `Across ${delayedCount} delayed North America shipments (18h SLA)`,
+        total_shipments: totalShipments,
+        delayed_shipments: delayedCount,
+        exceeding_threshold_count: exceedingThresholdCount,
+        matching_exception_count: matchingExceptionCount,
+        on_time_delivery_rate_pct: onTimeRatePct,
+        average_delay_duration_hours: avgDelayHours,
+        avg_exception_resolution_hours: avgResolutionHours,
+      };
+    }
+
+    return {
+      code,
+      group_name: 'Group C',
+      route_corridor: 'Southeast Asia → Australia',
+      delay_threshold_hours: 24,
+      main_exception_type: ExceptionType.DOCUMENTATION_ISSUE,
+      main_exception_label: 'Documentation Issue',
+      kpi_name: 'Exception Resolution Time',
+      kpi_value_formatted: `${avgResolutionHours} jam`,
+      kpi_numeric_value: avgResolutionHours,
+      kpi_unit: 'jam',
+      kpi_subtitle: `Mean turnaround across ${validResolvedCount} resolved Australia exceptions`,
+      total_shipments: totalShipments,
+      delayed_shipments: delayedCount,
+      exceeding_threshold_count: exceedingThresholdCount,
+      matching_exception_count: matchingExceptionCount,
+      on_time_delivery_rate_pct: onTimeRatePct,
+      average_delay_duration_hours: avgDelayHours,
+      avg_exception_resolution_hours: avgResolutionHours,
+    };
+  };
+
+  return {
+    GROUP_A: buildGroupSummary('GROUP_A'),
+    GROUP_B: buildGroupSummary('GROUP_B'),
+    GROUP_C: buildGroupSummary('GROUP_C'),
+  };
+}
+
 

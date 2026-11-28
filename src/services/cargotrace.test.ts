@@ -4,9 +4,12 @@ import {
   AuthPolicyService,
   DEFAULT_MAP_INTERACTIVITY_OPTIONS,
   EtaService,
+  GROUP_SCENARIO_PRESETS,
   ShipmentService,
   TrackingService,
   calculateHaversineKm,
+  classifyShipmentScenarioGroup,
+  computeAllGroupScenarioKpis,
   computeCompassIndicatorState,
   getCardinalDirection,
   normalizeCompassBearing,
@@ -550,4 +553,44 @@ test('Map Compass & Interactivity: computes compass orientation from view angle 
   assert.equal(DEFAULT_MAP_INTERACTIVITY_OPTIONS.dragRotate, true);
 });
 
+test('Worldwide Multimodal Network & Corridor Engine: verifies global hubs across all continents and multimodal corridors (Europe, Americas, Australia, Asia, Middle East)', async () => {
+  const { ALL_SEED_SHIPMENTS, SEED_EXCEPTIONS, SEED_LOCATIONS } = await import(
+    '../data/seedCargoTrace'
+  );
 
+  // 1. Verify worldwide location coverage across Asia, Europe, North America, South America, Middle East, and Australia
+  const countries = new Set(SEED_LOCATIONS.map((l) => l.country));
+  assert.ok(countries.has('Indonesia'));
+  assert.ok(countries.has('Singapore'));
+  assert.ok(countries.has('Netherlands'));
+  assert.ok(countries.has('Germany'));
+  assert.ok(countries.has('United States'));
+  assert.ok(countries.has('Australia'));
+  assert.ok(countries.has('China'));
+  assert.ok(countries.has('Japan'));
+  assert.ok(countries.has('United Arab Emirates'));
+  assert.ok(countries.has('Brazil'));
+  assert.ok(ALL_SEED_SHIPMENTS.length >= 50);
+
+  // 2. Verify corridor classification and live KPI computation across worldwide dataset
+  const locMap = new Map(SEED_LOCATIONS.map((l) => [l.id, l]));
+  const naShipment = ALL_SEED_SHIPMENTS.find((s) => s.id === 102); // Singapore -> Los Angeles
+  const auShipment = ALL_SEED_SHIPMENTS.find((s) => s.id === 104); // Jakarta -> Melbourne
+  const euShipment = ALL_SEED_SHIPMENTS.find((s) => s.id === 101); // Jakarta -> Rotterdam
+  assert.ok(naShipment && classifyShipmentScenarioGroup(naShipment, locMap) === 'GROUP_B');
+  assert.ok(auShipment && classifyShipmentScenarioGroup(auShipment, locMap) === 'GROUP_C');
+  assert.ok(euShipment && classifyShipmentScenarioGroup(euShipment, locMap) === 'GROUP_A');
+
+  const kpis = computeAllGroupScenarioKpis(
+    ALL_SEED_SHIPMENTS,
+    SEED_EXCEPTIONS,
+    SEED_LOCATIONS
+  );
+
+  assert.ok(kpis.GROUP_A.total_shipments >= 15);
+  assert.ok(kpis.GROUP_A.on_time_delivery_rate_pct > 0 && kpis.GROUP_A.on_time_delivery_rate_pct <= 100);
+  assert.ok(kpis.GROUP_B.total_shipments >= 10);
+  assert.ok(kpis.GROUP_B.average_delay_duration_hours > 0);
+  assert.ok(kpis.GROUP_C.total_shipments >= 8);
+  assert.ok(kpis.GROUP_C.avg_exception_resolution_hours > 0);
+});
